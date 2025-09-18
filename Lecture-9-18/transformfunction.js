@@ -1,5 +1,4 @@
 "use strict";
-//it will be handy to have references to some of our WebGL related objects
 let gl;
 let canvas;
 let program;
@@ -11,7 +10,12 @@ let uproj; // index of projection in shader program
 let xoffset;
 let yoffset;
 let zoffset;
-import { initShaders, vec4, flatten, perspective } from './helperfunctions.js';
+let theta;
+let scale;
+let vPosition; // remember where this shader attribute is
+let vColor; // remember where the color shader attribute is
+import { initShaders, vec4, flatten, perspective, translate, lookAt, rotateX } from './helperfunctions.js';
+import { scalem } from "./helperfunctions.js";
 //We want some set up to happen immediately when the page loads
 window.onload = function init() {
     //fetch reference to the canvas element we defined in the html file
@@ -24,8 +28,12 @@ window.onload = function init() {
     //Take the vertex and fragment shaders we provided and compile them into a shader program
     program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program); //and we want to use that program for our rendering
-    //TODO If we have shader uniforms, make sure we fetch locations
-    //TODO don't forget to initialize the offsets to zero
+    // If we have shader uniforms, make sure we fetch locations
+    umv = gl.getUniformLocation(program, "modelViewMatrix");
+    uproj = gl.getUniformLocation(program, "projectionMatrix");
+    //don't forget to initialize the offsets to zero
+    xoffset = yoffset = zoffset = theta = 0;
+    scale = 1;
     //This won't execute until the user hits a key
     //Note that we're defining the function anonymously.  If this gets too complicated
     //we probably want to split the code off somewhere and just give the name of the function
@@ -33,7 +41,34 @@ window.onload = function init() {
     //Note that arrow keys are only picked up by keydown, not keypress for some reason
     window.addEventListener("keydown", function (event) {
         switch (event.key) {
-            //TODO Respond to key presses
+            //Respond to key presses
+            case "s":
+                yoffset -= 0.1;
+                break;
+            case "w":
+                yoffset += 0.1;
+                break;
+            case "a":
+                xoffset -= 0.1;
+                break;
+            case "d":
+                xoffset += 0.1;
+                break;
+            case "ArrowUp":
+                zoffset -= 0.1;
+                break;
+            case "ArrowDown":
+                zoffset += 0.1;
+                break;
+            case "z":
+                theta += 10;
+                break;
+            case "m":
+                scale += .01;
+                break;
+            case "n":
+                scale -= .01;
+                break;
             //pattern is ArrowLeft for left arrow
         }
         requestAnimationFrame(render); //and now we need a new frame since we made a change
@@ -143,24 +178,24 @@ function makeCubeAndBuffer() {
     //What is this data going to be used for?
     //The vertex shader has an attribute named "vPosition".  Let's associate part of this data to that attribute
     //TODO Uncomment this
-    //vPosition = gl.getAttribLocation(program, "vPosition");
+    vPosition = gl.getAttribLocation(program, "vPosition");
     //attribute location we just fetched, 4 elements in each vector, data type float, don't normalize this data,
     //each position starts 32 bytes after the start of the previous one, and starts right away at index 0
     //TODO uncomment these
-    //gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
-    //gl.enableVertexAttribArray(vPosition);
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
+    gl.enableVertexAttribArray(vPosition);
     //The vertex shader also has an attribute named "vColor".  Let's associate the other part of this data to that attribute
     //TODO uncomment
-    //vColor = gl.getAttribLocation(program, "vColor");
+    vColor = gl.getAttribLocation(program, "vColor");
     //attribute location we just fetched, 4 elements in each vector, data type float, don't normalize this data,
     //each color starts 32 bytes after the start of the previous one, and the first color starts 16 bytes into the data
     //TODO uncomment these
-    //gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
-    //gl.enableVertexAttribArray(vColor);
+    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
+    gl.enableVertexAttribArray(vColor);
 }
 //increase rotation angle and request new frame
 function update() {
-    //TODO eventually we can do some animation updates here
+    //eventually we can do some animation updates here
     requestAnimationFrame(render);
 }
 //draw a new frame
@@ -169,11 +204,17 @@ function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     //we'll discuss projection matrices in a couple of days, but use this for now:
     let p = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
-    //TODO uncomment once you've declared the variable above
-    //gl.uniformMatrix4fv(uproj, false, p.flatten());
+    gl.uniformMatrix4fv(uproj, false, p.flatten());
     //now set up the model view matrix and send it over as a uniform
     //the inputs to this lookAt are to move back 20 units, point at the origin, and the positive y axis is up
     //TODO construct a model view matrix and send it as a uniform to the vertex shader
+    //look at params: where is the camera? what is a location the camera is lookng at? what direction is up?
+    let mv = lookAt(new vec4(0, 10, 20, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
+    //multiplay translate matrix to the right of lookat Matrix
+    mv = mv.mult(translate(xoffset, yoffset, zoffset));
+    mv = mv.mult(scalem(scale, scale, scale));
+    mv = mv.mult(rotateX(theta));
+    gl.uniformMatrix4fv(umv, false, mv.flatten());
     //we only have one object at the moment, but just so we don't forget this step later...
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
     //draw the geometry we previously sent over.  It's a list of 12 triangle(s),
