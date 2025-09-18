@@ -3,9 +3,34 @@
     <title>Project 2</title>
     <link rel="stylesheet" href="index.css"/>
     <script src="index.js"></script>
+    <script id = "vertex-shader" type = "x-shader/x-vertex">#version 300 es
+        in vec4 vPosition;
+
+        void main(){
+            gl_Position = vPosition;
+        }
+
+    </script>
+    <script id = "fragment-shader" type = "x-shader/x-fragment">#version 300 es
+        precision mediump float;
+        uniform  vec4 color;
+        out vec4 fragColor;
+
+        void main(){
+            fragColor = color;
+        }
+
+    </script>
+
 </head>
 <body>
-    <div>Test</div>
+    <div class = "header">Header</div>
+    <canvas id = "gl-canvas" width="512" height="512">
+        Sorry; your web browser doesn't support HTML5's canvas element.
+    </canvas>
+    <div>
+        Instructions
+    </div>
 </body>
 
 </html>
