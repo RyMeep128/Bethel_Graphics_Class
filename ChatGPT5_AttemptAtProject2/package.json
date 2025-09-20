@@ -1,0 +1,15 @@
+{
+  "name": "webgl-car-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "serve": "npx http-server -c-1 -p 5173"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "http-server": "^14.1.1"
+  }
+}

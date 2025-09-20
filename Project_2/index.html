@@ -5,15 +5,21 @@
     <script type = "module" src="index.js"></script>
     <script id = "vertex-shader" type = "x-shader/x-vertex">#version 300 es
         in vec4 vPosition;
+        in vec4 vColor;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+        out vec4 color;
 
         void main(){
-            gl_Position = vPosition;
+            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+
+            color = vColor;
         }
 
     </script>
     <script id = "fragment-shader" type = "x-shader/x-fragment">#version 300 es
         precision mediump float;
-        uniform  vec4 color;
+        in vec4 color;
         out vec4 fragColor;
 
         void main(){
