@@ -29,3 +29,5 @@ export const DARKGREEN: vec4   = new vec4(0, 0.39, 0, 1);
 export const BEIGE: vec4       = new vec4(0.96, 0.96, 0.86, 1);
 
 export const FramesPerMS:number = 16;
+export const Velocity:number = 1;
+export const Rotation:number = 10;
