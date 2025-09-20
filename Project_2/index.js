@@ -2,50 +2,63 @@ import * as util from "./util.js";
 import { Cube } from "./Cube.js";
 import { initShaders } from "./helperfunctions.js";
 import { perspective } from "./helperfunctions.js";
+/**
+ * @file main.ts
+ * @author Ryan Shafer
+ * @author Some comments by ChatGPT Model 5
+ *
+ * Entry point for the WebGL cube rendering project.
+ * <p>
+ * This file sets up the WebGL2 rendering context, compiles and links
+ * shaders, initializes cube objects, and drives the main render loop.
+ * It also handles basic keyboard controls to translate and rotate
+ * scene objects in real time.
+ * </p>
+ *
+ * <h4>Responsibilities</h4>
+ * <ul>
+ *   <li>Configure WebGL context state (clear color, viewport, depth test)</li>
+ *   <li>Compile shader program via {@code initShaders}</li>
+ *   <li>Build scene geometry (ground plane + cubes)</li>
+ *   <li>Bind keyboard controls to manipulate cube transforms</li>
+ *   <li>Manage update/render loop (update → requestAnimationFrame → render)</li>
+ *   <li>Upload projection matrix each frame and call {@code updateAndRender()} for each cube</li>
+ * </ul>
+ */
 "use strict";
 let gl;
 let canvas;
 let program;
-let bufferId;
 let objectArr;
-let umv; // index of model_view in shader program
 let uproj; // index of projection in shader program
-let vPosition; // remember where this shader attribute is
-let vColor; // remember where the color shader attribute is
-// we need to keep track of our current offsets
-let xoffset;
-let yoffset;
-let zoffset;
-let theta;
 window.onload = init;
+/**
+ * Initializes the WebGL rendering context, shader program,
+ * and the scene. Sets up global state such as clear color,
+ * viewport, depth test, input bindings, and starts the update loop.
+ */
 function init() {
     //Link up global vars
     canvas = document.getElementById("gl-canvas");
-    // the canvas already has a webgl rendering context
     gl = canvas.getContext("webgl2");
     if (!gl) {
         alert("WebGL isn't available");
     }
-    // Use the helper function to turn vertex and fragment shader into program
     program = initShaders(gl, "vertex-shader", "fragment-shader");
     // init the objectarr
     objectArr = [];
-    // tel the webglcontext what shader and fragment program to use
     gl.useProgram(program);
-    // when we clear the screen what color should it go to
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    //What part of the canvas should we use (all of it here)
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
-    umv = gl.getUniformLocation(program, "modelViewMatrix");
     uproj = gl.getUniformLocation(program, "projectionMatrix");
-    xoffset = yoffset = zoffset = theta = 0;
     setupKeyboardMouseBindings();
     initView();
-    //we need to do this to avoid having objects that are behind other objects show up anyway
     gl.enable(gl.DEPTH_TEST);
-    //start the loop
     window.setInterval(update, util.FramesPerMS);
 }
+/**
+ * Registers keyboard listeners for movement and rotation controls.
+ */
 function setupKeyboardMouseBindings() {
     window.addEventListener("keydown", keyDown);
     window.addEventListener("keyup", keyUp);
@@ -82,7 +95,7 @@ function keyDown(event) {
     }
 }
 /*
-  The keydown function handles all key up let go,
+  The keyup function handles all key up let go,
 
   @param event the keyboard event
  */
@@ -92,48 +105,54 @@ function keyUp(event) {
             console.log("stop");
     }
 }
+/**
+ * Initializes scene objects such as ground and test cubes.
+ * Adds them to the global object array for update/render cycle.
+ */
 function initView() {
-    //We'll split this off to its own function for clarity, but we need something to make a picture of
-    makeCubeAndBuffer();
-}
-//Make a cube and send it over to the graphics card
-function makeCubeAndBuffer() {
     let ground = new Cube(gl, program, 50, .01, 100);
     ground.setAllColor(util.DARKGREEN);
     ground.setY(-1);
     ground.bufferCube();
     objectArr.push(ground);
+    //We'll split this off to its own function for clarity, but we need something to make a picture of
+    makeCubeAndBuffer();
+}
+/**
+ * Constructs two colored cubes, assigns face colors,
+ * uploads their data to the GPU, and pushes them into the object array.
+ */
+function makeCubeAndBuffer() {
     //front face = 6 verts, position then color
     let testCube = new Cube(gl, program, 1, .5, 3);
     testCube.setColors(util.BEIGE, util.GOLD, util.RED, util.BLUE, util.GREEN, util.MAROON);
     testCube.bufferCube();
     objectArr.push(testCube);
     let testCube2 = new Cube(gl, program, 1, .5, 3);
-    testCube2.setColors(util.BEIGE, util.GOLD, util.CYAN, util.BLUE, util.GREEN, util.MAROON);
+    testCube2.setColors(util.CYAN, util.LIGHTBLUE, util.PINK, util.PURPLE, util.GREEN, util.SILVER);
     testCube2.bufferCube();
     objectArr.push(testCube2);
-    //front face = 6 verts, position then color
-    // let testCube2 = new Cube(gl,program,1,.5,3);
-    //
-    // testCube2.setColors(util.CYAN,util.LIGHTBLUE,util.PINK,util.PURPLE,util.GREEN,util.SILVER);
-    //
-    // testCube2.bufferCube();
 }
+/**
+ * Game loop update function; requests the next render frame.
+ */
 function update() {
     //request a frame be drawn pls
     requestAnimationFrame(render);
 }
-//draw a new frame
+/**
+ * Clears the frame and renders the full scene.
+ * <p>
+ * Sets up the projection matrix, uploads it as a uniform,
+ * and calls {@code updateAndRender()} on each cube in the object array.
+ * </p>
+ */
 function render() {
     //start by clearing any previous data for both color and depth
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     let p = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
     gl.uniformMatrix4fv(uproj, false, p.flatten());
-    //we'll discuss projection matrices in a couple of days, but use this for now
-    //now set up the model view matrix and send it over as a uniform
-    //the inputs to this lookAt are to move back 20 units, point at the origin, and the positive y axis is up
-    //TODO construct a model view matrix and send it as a uniform to the vertex shader
     for (let i = 0; i < objectArr.length; i++) {
-        objectArr[i].update();
+        objectArr[i].updateAndRender();
     }
 }

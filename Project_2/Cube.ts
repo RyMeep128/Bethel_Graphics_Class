@@ -1,4 +1,5 @@
 import {flatten, lookAt, mat4, rotateY, translate, vec4} from "./helperfunctions.js";
+import {RenderableObject} from "./RenderableObject";
 
 /**
  * @Author{Ryan Shafer}
@@ -18,7 +19,7 @@ import {flatten, lookAt, mat4, rotateY, translate, vec4} from "./helperfunctions
  *   <li>Call a face-color setter (or {@link setColors}/{@link setAllColor}) before {@link bufferCube} so the sentinel exists.</li>
  * </ul>
  */
-export class Cube {
+export class Cube extends RenderableObject{
 
     /** Accumulates 6 triangle vertices + 1 final color vec4 sentinel (index = length-1). */
     private frontFace: vec4[] = [];
@@ -70,6 +71,7 @@ export class Cube {
      * @param depth   Cube depth (z-span)
      */
     constructor(gl:WebGLRenderingContext, program: WebGLProgram,width: number, height: number, depth: number) {
+        super(gl,program);
         let hx = width / 2;
         let hy = height / 2;
         let hz = depth / 2;
@@ -149,15 +151,6 @@ export class Cube {
         this.bufferId = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, flatten(cubepoints), this.gl.STATIC_DRAW);
-
-        // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes, offsets 0 and 16.
-        let vColor = this.gl.getAttribLocation(this.program, "vColor");
-        this.gl.vertexAttribPointer(vColor, 4, this.gl.FLOAT, false, 32, 16);
-        this.gl.enableVertexAttribArray(vColor);
-
-        let vPosition = this.gl.getAttribLocation(this.program, "vPosition");
-        this.gl.vertexAttribPointer(vPosition, 4, this.gl.FLOAT, false, 32, 0);
-        this.gl.enableVertexAttribArray(vPosition);
     }
 
     /**
@@ -378,6 +371,15 @@ export class Cube {
     private draw():void{
         //Before we do anything lets double check we are using the right buffer!
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
+
+        // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes, offsets 0 and 16.
+        let vColor = this.gl.getAttribLocation(this.program, "vColor");
+        this.gl.vertexAttribPointer(vColor, 4, this.gl.FLOAT, false, 32, 16);
+        this.gl.enableVertexAttribArray(vColor);
+
+        let vPosition = this.gl.getAttribLocation(this.program, "vPosition");
+        this.gl.vertexAttribPointer(vPosition, 4, this.gl.FLOAT, false, 32, 0);
+        this.gl.enableVertexAttribArray(vPosition);
 
         this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertexCount);    // draw the cube
     }
