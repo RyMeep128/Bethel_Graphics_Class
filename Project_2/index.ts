@@ -132,7 +132,7 @@ function initView() {
     let ground:Cube = new Cube(gl,program, 50, .01, 100);
     ground.setAllColor(util.DARKGREEN);
     ground.setY(-1);
-    ground.bufferCube();
+    ground.bufferObject();
     objectArr.push(ground);
 
     //We'll split this off to its own function for clarity, but we need something to make a picture of
@@ -148,12 +148,12 @@ function makeCubeAndBuffer(){
     //front face = 6 verts, position then color
     let testCube = new Cube(gl,program,1,.5,3);
     testCube.setColors(util.BEIGE,util.GOLD,util.RED,util.BLUE,util.GREEN,util.MAROON);
-    testCube.bufferCube();
+    testCube.bufferObject();
     objectArr.push(testCube);
 
     let testCube2 = new Cube(gl,program,1,.5,3);
     testCube2.setColors(util.CYAN,util.LIGHTBLUE,util.PINK,util.PURPLE,util.GREEN,util.SILVER);
-    testCube2.bufferCube();
+    testCube2.bufferObject();
     objectArr.push(testCube2);
 
 }
