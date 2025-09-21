@@ -1,4 +1,4 @@
-import {flatten, lookAt, mat4, rotateY, rotateZ, translate, vec4} from "./helperfunctions.js";
+import {flatten, lookAt, mat4, rotateX, rotateY, rotateZ, translate, vec4} from "./helperfunctions.js";
 
 /**
  * @Author {Ryan Shafer}
@@ -15,7 +15,6 @@ import {flatten, lookAt, mat4, rotateY, rotateZ, translate, vec4} from "./helper
  *   interleaved [position, color] data streams
  */
 export abstract class RenderableObject {
-
     /** WebGL context used for buffer management and drawing. */
     private gl: WebGLRenderingContext;
     /** Shader program whose attributes/uniforms are used by this object. */
@@ -32,12 +31,16 @@ export abstract class RenderableObject {
     /** Model translation on Z (world units). */
     private z: number;
     /** Yaw (degrees) for rotation about the +Y axis. */
-    private theta: number;
+    private yaw: number;
+    private pitch: number;
+    private roll:number;
 
     /** Total number of vertices to draw for this object. */
     protected vertexCount:number;
     /** Number of faces; used by subclasses for invariants in color handling. */
     protected sides:number;
+
+    private bindingGroup:number;
 
     /**
      * Constructs a renderable object with initial identity transform
@@ -48,13 +51,9 @@ export abstract class RenderableObject {
      * @param sides   Number of faces in the object (e.g., 6 for a cube)
      */
     constructor(gl: WebGLRenderingContext,program: WebGLProgram, sides:number) {
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
-        this.theta = 0;
+        this.x = this.y = this.z = this.yaw = this.pitch = this.roll = this.vertexCount = 0;
         this.gl = gl;
         this.program = program;
-        this.vertexCount = 0;
         this.sides = sides;
         this.umv = gl.getUniformLocation(program, "modelViewMatrix");
     }
@@ -74,27 +73,27 @@ export abstract class RenderableObject {
     }
 
     /**
-     * Updates the model-view transform and issues the draw call.
+     * Updates the model-view transform.
      * <p>Uses a fixed camera lookAt for now (positioned at (0,10,20)).</p>
      */
-    public updateAndRender():void{
+    public update():void{
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
 
         let mv:mat4 = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
 
         mv = mv.mult(translate(this.x,this.y,this.z));
-        mv = mv.mult(rotateZ(this.theta));
+        mv = mv.mult(rotateY(this.yaw));
+        mv = mv.mult(rotateX(this.pitch));
+        mv = mv.mult(rotateZ(this.roll));
 
         this.gl.uniformMatrix4fv(this.umv, false, mv.flatten());
-
-        this.draw();
     }
 
     /**
      * Issues the draw call for this object.
      * <p><b>Ordering:</b> Must have already bound this object's buffer and uploaded attributes.</p>
      */
-    private draw():void{
+    public draw():void{
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
 
         // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes
@@ -119,7 +118,7 @@ export abstract class RenderableObject {
     public setZ(nz:number):void{ this.z = nz; }
 
     /** Sets absolute yaw angle in degrees (rotation about +Y). */
-    public setTheta(nt:number):void{ this.theta = nt; }
+    public setYaw(nt:number):void{ this.yaw = nt; }
 
     /** Adds to X translation (world units). */
     public addX(nx:number):void{ this.x += nx; }
@@ -131,7 +130,15 @@ export abstract class RenderableObject {
     public addZ(nz:number):void{ this.z += nz; }
 
     /** Adds to yaw angle in degrees (rotation about +Y). */
-    public addTheta(nt:number):void{ this.theta += nt; }
+    public addYaw(nt:number):void{ this.yaw += nt; }
+
+    public addPitch(np:number):void {this.pitch = np}
+
+    public addRoll(nr:number):void{ this.roll = nr; }
+
+    public bind(bind:number):void{ this.bindingGroup = bind; }
+
+    public getBinding():number{return this.bindingGroup;}
 
     /**
      * Must be implemented by subclasses:

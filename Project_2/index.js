@@ -64,6 +64,10 @@ function setupKeyboardMouseBindings() {
     window.addEventListener("keydown", keyDown);
     window.addEventListener("keyup", keyUp);
 }
+let movingForwardBool = false;
+let movingBackwardBool = false;
+let turningRightBool = false;
+let turningLeftBool = false;
 /*
   The keydown function handles all key down presses,
 
@@ -73,25 +77,25 @@ function keyDown(event) {
     switch (event.key) {
         case "w":
             console.log("w");
-            objectArr[1].addZ(-util.Velocity);
+            movingForwardBool = true;
             break;
         case "a":
             console.log("a");
             // xoffset -= util.Velocity;
-            objectArr[1].addTheta(util.Rotation);
+            turningLeftBool = true;
             break;
         case "s":
             console.log("s");
-            objectArr[1].addZ(util.Velocity);
+            movingBackwardBool = true;
             break;
         case "d":
             console.log("d");
             // xoffset += util.Velocity;
-            objectArr[1].addTheta(-util.Rotation);
+            turningRightBool = true;
             break;
         case " ":
             console.log("space");
-            objectArr[3].addTheta(util.Rotation);
+            objectArr[3].addYaw(util.Rotation);
             break;
     }
 }
@@ -102,8 +106,27 @@ function keyDown(event) {
  */
 function keyUp(event) {
     switch (event.key) {
+        case "w":
+            console.log("w");
+            movingForwardBool = false;
+            break;
+        case "a":
+            console.log("a");
+            // xoffset -= util.Velocity;
+            turningLeftBool = false;
+            break;
+        case "s":
+            console.log("s");
+            movingBackwardBool = false;
+            break;
+        case "d":
+            console.log("d");
+            // xoffset += util.Velocity;
+            turningRightBool = false;
+            break;
         default:
             console.log("stop");
+            break;
     }
 }
 /**
@@ -128,13 +151,17 @@ function makeCubeAndBuffer() {
     let testCube = new Cube(gl, program, 1, .5, 3);
     testCube.setColors(util.BEIGE, util.GOLD, util.RED, util.BLUE, util.GREEN, util.MAROON);
     testCube.bufferObject();
+    testCube.bind(0);
     objectArr.push(testCube);
     let testCube2 = new Cube(gl, program, 1, 1, 1);
     testCube2.setColors(util.CYAN, util.HONEYDEW, util.PINK, util.PURPLE, util.GREEN, util.SILVER);
     testCube2.bufferObject();
     objectArr.push(testCube2);
     let testCylinder = new Cylinder(gl, program, 1, .5);
-    testCylinder.setAllColor(util.RED, util.YELLOW, util.BLUE);
+    testCylinder.setAllColor(util.ORANGE, util.YELLOW, util.BLUE);
+    testCylinder.bind(0);
+    testCylinder.addPitch(90);
+    testCylinder.addYaw(90);
     testCylinder.bufferObject();
     objectArr.push(testCylinder);
 }
@@ -158,6 +185,24 @@ function render() {
     let p = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
     gl.uniformMatrix4fv(uproj, false, p.flatten());
     for (let i = 0; i < objectArr.length; i++) {
-        objectArr[i].updateAndRender();
+        if (objectArr[i].getBinding() == 0) {
+            moveObjects(i);
+        }
+        objectArr[i].update();
+        objectArr[i].draw();
+    }
+}
+function moveObjects(i) {
+    if (movingForwardBool) {
+        objectArr[i].addZ(-util.Velocity);
+    }
+    if (movingBackwardBool) {
+        objectArr[i].addZ(util.Velocity);
+    }
+    if (turningRightBool) {
+        objectArr[i].addYaw(-util.Rotation);
+    }
+    if (turningLeftBool) {
+        objectArr[i].addYaw(util.Rotation);
     }
 }

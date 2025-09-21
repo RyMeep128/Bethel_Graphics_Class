@@ -68,7 +68,7 @@ export const MEDIUMORCHID: vec4  = new vec4(0.73, 0.33, 0.83, 1);
 export const HONEYDEW: vec4      = new vec4(0.94, 1, 0.94, 1);
 
 export const FramesPerMS:number = 16;
-export const Velocity:number = 1;
-export const Rotation:number = 10;
+export const Velocity:number = .1;
+export const Rotation:number = 1;
 
-export const Detail = 3;
+export const Detail = 32;
