@@ -1,4 +1,4 @@
-import {flatten, lookAt, mat4, rotateY, translate, vec4} from "./helperfunctions.js";
+import {flatten, lookAt, mat4, rotateY, rotateZ, translate, vec4} from "./helperfunctions.js";
 
 /**
  * @Author {Ryan Shafer}
@@ -83,7 +83,7 @@ export abstract class RenderableObject {
         let mv:mat4 = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
 
         mv = mv.mult(translate(this.x,this.y,this.z));
-        mv = mv.mult(rotateY(this.theta));
+        mv = mv.mult(rotateZ(this.theta));
 
         this.gl.uniformMatrix4fv(this.umv, false, mv.flatten());
 

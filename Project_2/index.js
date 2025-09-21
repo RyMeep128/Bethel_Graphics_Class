@@ -2,6 +2,7 @@ import * as util from "./util.js";
 import { Cube } from "./Cube.js";
 import { initShaders } from "./helperfunctions.js";
 import { perspective } from "./helperfunctions.js";
+import { Cylinder } from "./Cylinder.js";
 /**
  * @file main.ts
  * @author Ryan Shafer
@@ -90,7 +91,7 @@ function keyDown(event) {
             break;
         case " ":
             console.log("space");
-            objectArr[2].addTheta(util.Rotation);
+            objectArr[3].addTheta(util.Rotation);
             break;
     }
 }
@@ -128,10 +129,14 @@ function makeCubeAndBuffer() {
     testCube.setColors(util.BEIGE, util.GOLD, util.RED, util.BLUE, util.GREEN, util.MAROON);
     testCube.bufferObject();
     objectArr.push(testCube);
-    let testCube2 = new Cube(gl, program, 1, .5, 3);
-    testCube2.setColors(util.CYAN, util.LIGHTBLUE, util.PINK, util.PURPLE, util.GREEN, util.SILVER);
+    let testCube2 = new Cube(gl, program, 1, 1, 1);
+    testCube2.setColors(util.CYAN, util.HONEYDEW, util.PINK, util.PURPLE, util.GREEN, util.SILVER);
     testCube2.bufferObject();
     objectArr.push(testCube2);
+    let testCylinder = new Cylinder(gl, program, 1, .5);
+    testCylinder.setAllColor(util.RED, util.YELLOW, util.BLUE);
+    testCylinder.bufferObject();
+    objectArr.push(testCylinder);
 }
 /**
  * Game loop update function; requests the next render frame.

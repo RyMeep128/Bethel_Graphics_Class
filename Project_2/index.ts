@@ -2,6 +2,8 @@ import * as util from "./util.js";
 import { Cube } from "./Cube.js";
 import {initShaders} from "./helperfunctions.js";
 import {mat4, perspective} from "./helperfunctions.js";
+import {Cylinder} from "./Cylinder.js";
+import {RenderableObject} from "./RenderableObject";
 
 /**
  * @file main.ts
@@ -32,7 +34,7 @@ import {mat4, perspective} from "./helperfunctions.js";
 let gl: WebGLRenderingContext;
 let canvas: HTMLCanvasElement;
 let program: WebGLProgram;
-let objectArr:Cube[];
+let objectArr:RenderableObject[];
 
 let uproj:WebGLUniformLocation; // index of projection in shader program
 
@@ -106,7 +108,7 @@ function keyDown(event:KeyboardEvent) {
             break;
         case " ":
             console.log("space");
-            objectArr[2].addTheta(util.Rotation)
+            objectArr[3].addTheta(util.Rotation)
             break;
     }
 }
@@ -151,10 +153,15 @@ function makeCubeAndBuffer(){
     testCube.bufferObject();
     objectArr.push(testCube);
 
-    let testCube2 = new Cube(gl,program,1,.5,3);
-    testCube2.setColors(util.CYAN,util.LIGHTBLUE,util.PINK,util.PURPLE,util.GREEN,util.SILVER);
+    let testCube2 = new Cube(gl,program,1,1,1);
+    testCube2.setColors(util.CYAN,util.HONEYDEW,util.PINK,util.PURPLE,util.GREEN,util.SILVER);
     testCube2.bufferObject();
     objectArr.push(testCube2);
+
+    let testCylinder:Cylinder = new Cylinder(gl,program,1,.5);
+    testCylinder.setAllColor(util.RED,util.YELLOW,util.BLUE);
+    testCylinder.bufferObject();
+    objectArr.push(testCylinder);
 
 }
 
