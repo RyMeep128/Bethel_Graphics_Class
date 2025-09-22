@@ -49,9 +49,18 @@ export abstract class RenderableObject {
      * @param gl      WebGL context
      * @param program Compiled + linked shader program
      * @param sides   Number of faces in the object (e.g., 6 for a cube)
+     * @param x
+     * @param y
+     * @param z
      */
-    constructor(gl: WebGLRenderingContext,program: WebGLProgram, sides:number) {
-        this.x = this.y = this.z = this.yaw = this.pitch = this.roll = this.vertexCount = 0;
+    protected constructor(gl: WebGLRenderingContext,program: WebGLProgram, sides:number, x:number = 0, y:number = 0, z:number = 0, yaw:number = 0, pitch:number = 0, roll:number = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.roll = roll;
+        this.vertexCount = 0;
         this.gl = gl;
         this.program = program;
         this.sides = sides;

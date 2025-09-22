@@ -1,4 +1,5 @@
 import * as util from "./util.js";
+import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
 import {initShaders} from "./helperfunctions.js";
 import {mat4, perspective} from "./helperfunctions.js";
@@ -155,9 +156,8 @@ function keyUp(event:KeyboardEvent) {
  */
 function initView() {
 
-    let ground:Cube = new Cube(gl,program, 50, .01, 100);
-    ground.setAllColor(util.DARKGREEN);
-    ground.setY(-1);
+    let ground:Cube = new Cube(gl,program, 50, .01, 100,0,-1,0);
+    ground.setAllColor(Color.DARKGREEN);
     ground.bufferObject();
     objectArr.push(ground);
 
@@ -173,18 +173,18 @@ function makeCubeAndBuffer(){
 
     //front face = 6 verts, position then color
     let testCube = new Cube(gl,program,1,.5,3);
-    testCube.setColors(util.BEIGE,util.GOLD,util.RED,util.BLUE,util.GREEN,util.MAROON);
+    testCube.setColors(Color.BEIGE,Color.GOLD,Color.RED,Color.BLUE,Color.GREEN,Color.MAROON);
     testCube.bufferObject();
     testCube.bind(0);
     objectArr.push(testCube);
 
     let testCube2 = new Cube(gl,program,1,1,1);
-    testCube2.setColors(util.CYAN,util.HONEYDEW,util.PINK,util.PURPLE,util.GREEN,util.SILVER);
+    testCube2.setColors(Color.CYAN,Color.HONEYDEW,Color.PINK,Color.PURPLE,Color.GREEN,Color.SILVER);
     testCube2.bufferObject();
     objectArr.push(testCube2);
 
     let testCylinder:Cylinder = new Cylinder(gl,program,1,.5);
-    testCylinder.setAllColor(util.ORANGE,util.YELLOW,util.BLUE);
+    testCylinder.setAllColor(Color.ORANGE,Color.YELLOW,Color.BLUE);
     testCylinder.bind(0);
     testCylinder.addPitch(90);
     testCylinder.addYaw(90);

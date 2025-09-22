@@ -47,8 +47,8 @@ export class Cube extends RenderableObject{
      * @param height  Cube height (y-span)
      * @param depth   Cube depth (z-span)
      */
-    constructor(gl:WebGLRenderingContext, program: WebGLProgram,width: number, height: number, depth: number) {
-        super(gl,program,6);
+    constructor(gl:WebGLRenderingContext, program: WebGLProgram,width: number, height: number, depth: number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
+        super(gl,program,6,x,y,z,yaw,pitch,roll);
         let hx = width / 2;
         let hy = height / 2;
         let hz = depth / 2;

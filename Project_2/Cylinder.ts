@@ -9,8 +9,8 @@ export class Cylinder extends RenderableObject{
     private middleBits:vec4[];
     private vertexPerFace:number;
 
-    constructor(gl:WebGLRenderingContext, program: WebGLProgram,radius:number, height:number) {
-        super(gl,program,3);
+    constructor(gl:WebGLRenderingContext, program: WebGLProgram,radius:number, height:number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
+    super(gl,program,3,x,y,z,yaw,pitch,roll);
 
         this.topCircle = [];
         this.bottomCircle = [];
