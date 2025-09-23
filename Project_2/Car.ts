@@ -1,5 +1,5 @@
 import {RenderableObject} from "./RenderableObject.js";
-import {lookAt, mat4, rotateX, rotateY, rotateZ, translate, vec4} from "./helperfunctions.js";
+import {lookAt, mat4, rotateX, rotateY, rotateZ, toradians, translate, vec4} from "./helperfunctions.js";
 import {Cube} from "./Cube.js";
 import {Cylinder} from "./Cylinder.js";
 import * as Color from "./Color.js"
@@ -32,13 +32,14 @@ export class Car extends RenderableObject{
     }
 
 
-
     /**
      * Does not do anything. needs the updates and draws sidebyside
      */
     public override update(parent?:mat4):mat4{
         return null;
     }
+    
+    private stupidRear = 0;
 
     private wheelTheta = 0;
     public override draw(){
@@ -46,19 +47,12 @@ export class Car extends RenderableObject{
         this.body.update(carMV);
         this.body.draw();
 
-        this.wheel.setYaw(this.yaw);
-        this.wheel.setZ(this.body.getDepth()/2);
-        this.wheel.setX(this.body.getWidth()/2);
-        this.wheel.update(carMV);
-        this.wheel.draw();
-
         this.wheel.setYaw(this.wheelTheta);
         this.wheel.setZ(this.body.getDepth()/-2);
         this.wheel.setX(this.body.getWidth()/-2);
         this.wheel.update(carMV);
         this.wheel.draw();
 
-
         this.wheel.setYaw(this.wheelTheta);
         this.wheel.setZ(this.body.getDepth()/-2);
         this.wheel.setX(this.body.getWidth()/2);
@@ -66,6 +60,11 @@ export class Car extends RenderableObject{
         this.wheel.draw();
 
 
+        this.wheel.setYaw(this.yaw);
+        this.wheel.setZ(this.body.getDepth()/2);
+        this.wheel.setX(this.body.getWidth()/2);
+        this.wheel.update(carMV);
+        this.wheel.draw();
 
         this.wheel.setYaw(this.yaw);
         this.wheel.setZ(this.body.getDepth()/2);
@@ -75,14 +74,21 @@ export class Car extends RenderableObject{
 
     }
 
-    public moveCarFoward(){
-        this.addZ(-util.Velocity)
+    public moveCarForward(){
+        let phi = this.yaw + this.wheelTheta;
+        this.addX(-util.Velocity * Math.sin(toradians(phi)));
+        this.addZ(-util.Velocity * Math.cos(toradians(phi)));
         this.wheel.addPitch(-util.Rotation*10);
+        this.yaw = this.yaw + (this.wheelTheta * .05);
+
     }
 
     public moveCarBackward(){
-        this.addZ(util.Velocity)
+        let phi = this.yaw + this.wheelTheta;
+        this.addX(util.Velocity * Math.sin(toradians(phi)));
+        this.addZ(util.Velocity * Math.cos(toradians(phi)));
         this.wheel.addPitch(util.Rotation*10);
+        this.yaw = this.yaw + (this.wheelTheta * .05);
     }
 
     public turnRight(){

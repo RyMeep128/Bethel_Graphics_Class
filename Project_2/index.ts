@@ -235,7 +235,7 @@ function render(){
 
 function moveObjects(i:number){
     if(movingForwardBool){
-        car.moveCarFoward();
+        car.moveCarForward();
     }
     if(movingBackwardBool){
         car.moveCarBackward();

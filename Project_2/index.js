@@ -199,7 +199,7 @@ function render() {
 }
 function moveObjects(i) {
     if (movingForwardBool) {
-        car.moveCarFoward();
+        car.moveCarForward();
     }
     if (movingBackwardBool) {
         car.moveCarBackward();
