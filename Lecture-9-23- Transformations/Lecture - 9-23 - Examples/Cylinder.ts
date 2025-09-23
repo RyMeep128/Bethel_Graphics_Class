@@ -7,15 +7,10 @@ export class Cylinder extends RenderableObject{
     private topCircle:vec4[];
     private bottomCircle:vec4[];
     private middleBits:vec4[];
-
-    private topCircleColor:vec4[];
-    private bottomCircleColor:vec4[];
-    private middleBitsColor:vec4[];
-
     private vertexPerFace:number;
 
-    constructor(gl:WebGLRenderingContext, program: WebGLProgram,objectArr:RenderableObject[],radius:number, height:number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
-    super(gl,program,objectArr,3,x,y,z,yaw,pitch,roll);
+    constructor(gl:WebGLRenderingContext, program: WebGLProgram,radius:number, height:number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
+    super(gl,program,3,x,y,z,yaw,pitch,roll);
 
         this.topCircle = [];
         this.bottomCircle = [];
@@ -66,45 +61,40 @@ export class Cylinder extends RenderableObject{
     }
 
     public setTopColor(color:vec4):void{
-        this.topCircleColor = this.helperColor(color,this.topCircle);
+        this.topCircle.push(color);
     }
 
     public setBottomColor(color:vec4):void{
-        this.bottomCircleColor = this.helperColor(color,this.bottomCircle);
+        this.bottomCircle.push(color);
     }
-
-    public setMiddleBitsColor(color:vec4):void{
-        this.middleBitsColor = this.helperColor(color,this.middleBits);
-    }
-
-    public setMiddleBitsColors(colors:vec4[]):void{
-        this.middleBitsColor = this.helperGradientColor(colors,this.middleBits);
-    }
-
-    public setTopColors(colors:vec4[]):void{
-        this.topCircleColor = this.helperGradientColor(colors,this.topCircle);
-    }
-
-    public setBottomColors(colors:vec4[]):void{
-        this.bottomCircleColor = this.helperGradientColor(colors,this.bottomCircle);
-    }
-
 
     public setAllColor(topColor:vec4, bottomColor:vec4, middleBitsColor:vec4):void{
-        this.setTopColor(topColor);
-        this.setBottomColor(bottomColor);
-        this.setMiddleBitsColor(middleBitsColor);
+        this.topCircle.push(topColor);
+        this.bottomCircle.push(bottomColor);
+        this.middleBits.push(middleBitsColor);
     }
 
     public override getObjectData():vec4[]{
         let tempArr:vec4[] = [];
 
-        tempArr.push(...this.loadingArrayHelper(this.topCircle,this.topCircleColor));
-        tempArr.push(...this.loadingArrayHelper(this.bottomCircle,this.bottomCircleColor));
-        tempArr.push(...this.loadingArrayHelper(this.middleBits,this.middleBitsColor));
+        tempArr.push(...this.loadingArrayHelper(this.topCircle));
+        tempArr.push(...this.loadingArrayHelper(this.bottomCircle));
+        tempArr.push(...this.loadingArrayHelper(this.middleBits));
 
         return tempArr;
 
     }
+
+    protected override loadingArrayHelper(face: vec4[]): vec4[] {
+        let tempArr:vec4[] = [];
+        //we don't go all the way through the array.
+        for (let i = 0; i < face.length-1; i++) {
+            tempArr.push(face[i]);
+            tempArr.push(face[face.length-1]);
+        }
+
+        return tempArr;
+    }
+
 
 }

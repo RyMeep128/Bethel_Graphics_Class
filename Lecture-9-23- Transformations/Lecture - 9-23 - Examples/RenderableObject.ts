@@ -1,16 +1,6 @@
-import {
-    flatten,
-    lookAt,
-    mat4,
-    rotate,
-    rotateX,
-    rotateY,
-    rotateZ,
-    todegrees,
-    translate,
-    vec4
-} from "./helperfunctions.js";
-import * as util from "./util.js"
+import {flatten, lookAt, mat4, rotateX, rotateY, rotateZ, translate, vec4} from "./helperfunctions.js";
+import {rotate} from "../helperfunctions";
+
 /**
  * @Author {Ryan Shafer}
  * @Author {Some comments added by ChatGPT Model 5}
@@ -27,24 +17,24 @@ import * as util from "./util.js"
  */
 export abstract class RenderableObject {
     /** WebGL context used for buffer management and drawing. */
-    protected gl: WebGLRenderingContext;
+    private gl: WebGLRenderingContext;
     /** Shader program whose attributes/uniforms are used by this object. */
-    protected program: WebGLProgram;
+    private program: WebGLProgram;
     /** GPU buffer for this object's interleaved vertex + color data. */
     private bufferId:WebGLBuffer;
     /** index of model_view in shader program */
-    protected umv:WebGLUniformLocation;
+    private umv:WebGLUniformLocation;
 
     /** Model translation on X (world units). */
-    protected x: number;
+    private x: number;
     /** Model translation on Y (world units). */
-    protected y: number;
+    private y: number;
     /** Model translation on Z (world units). */
-    protected z: number;
+    private z: number;
     /** Yaw (degrees) for rotation about the +Y axis. */
-    protected yaw: number;
-    protected pitch: number;
-    protected roll:number;
+    private yaw: number;
+    private pitch: number;
+    private roll:number;
 
     /** Total number of vertices to draw for this object. */
     protected vertexCount:number;
@@ -55,25 +45,18 @@ export abstract class RenderableObject {
 
     protected color:vec4[];
 
-    protected startDrawing:number;
-
-
     /**
      * Constructs a renderable object with initial identity transform
      * and default vertex bookkeeping.
      *
      * @param gl      WebGL context
      * @param program Compiled + linked shader program
-     * @param objectArr
      * @param sides   Number of faces in the object (e.g., 6 for a cube)
      * @param x
      * @param y
      * @param z
-     * @param yaw
-     * @param pitch
-     * @param roll
      */
-    protected constructor(gl: WebGLRenderingContext,program: WebGLProgram, objectArr:RenderableObject[], sides:number, x:number = 0, y:number = 0, z:number = 0, yaw:number = 0, pitch:number = 0, roll:number = 0) {
+    protected constructor(gl: WebGLRenderingContext,program: WebGLProgram, sides:number, x:number = 0, y:number = 0, z:number = 0, yaw:number = 0, pitch:number = 0, roll:number = 0) {
         this.x = x;
         this.y = y;
         this.z = z;
@@ -85,21 +68,32 @@ export abstract class RenderableObject {
         this.program = program;
         this.sides = sides;
         this.umv = gl.getUniformLocation(program, "modelViewMatrix");
-        this.startDrawing = 0;
-        for (let i = 0; i < objectArr.length; i++) {
-            this.startDrawing += objectArr[i].getVertexCount();
-        }
-
     }
 
+    /**
+     * Uploads interleaved position/color data to the GPU.
+     * <p><b>Note:</b> Subclasses must have appended color data before calling this,
+     * so that {@link getObjectData} returns a valid interleaved stream.</p>
+     */
+    public bufferObject():void{
+        const objectPoints:vec4[] = []
+        objectPoints.push(...this.getObjectData());
+
+        this.bufferId = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, flatten(objectPoints), this.gl.STATIC_DRAW);
+    }
 
     /**
      * Updates the model-view transform.
      * <p>Uses a fixed camera lookAt for now (positioned at (0,10,20)).</p>
      */
-    public update(parent?: mat4):mat4{
+    public update():void{
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
 
-        let mv:mat4 = parent ?? lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
+
+
+        let mv:mat4 = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
 
         mv = mv.mult(translate(this.x,this.y,this.z));
 
@@ -107,25 +101,10 @@ export abstract class RenderableObject {
         mv = mv.mult(rotateX(this.pitch));
         mv = mv.mult(rotateZ(this.roll));
 
+        // mv = mv.mult(rotate(this.yaw,new vec4(this.x,this.y,this.z)));
+
+
         this.gl.uniformMatrix4fv(this.umv, false, mv.flatten());
-        return mv;
-    }
-
-
-    protected helperColor(color:vec4, face:vec4[]):vec4[]{
-        let tempArr:vec4[] = [];
-        for (let i = 0; i < face.length; i++) {
-            tempArr.push(color);
-        }
-        return tempArr;
-    }
-
-    protected helperGradientColor(colors:vec4[], face:vec4[]):vec4[]{
-        let tempArr:vec4[] = [];
-        for (let i = 0; i < face.length; i++) {
-            tempArr.push(colors[i % colors.length])
-        }
-        return tempArr;
     }
 
 
@@ -134,12 +113,19 @@ export abstract class RenderableObject {
      * <p><b>Ordering:</b> Must have already bound this object's buffer and uploaded attributes.</p>
      */
     public draw():void{
-        this.gl.drawArrays(this.gl.TRIANGLES, this.startDrawing, this.vertexCount);
-    }
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.bufferId);
 
-    public getX():number{return this.x;}
-    public getY():number{return this.y;}
-    public getZ():number{return this.z;}
+        // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes
+        let vColor = this.gl.getAttribLocation(this.program, "vColor");
+        this.gl.vertexAttribPointer(vColor, 4, this.gl.FLOAT, false, 32, 16);
+        this.gl.enableVertexAttribArray(vColor);
+
+        let vPosition = this.gl.getAttribLocation(this.program, "vPosition");
+        this.gl.vertexAttribPointer(vPosition, 4, this.gl.FLOAT, false, 32, 0);
+        this.gl.enableVertexAttribArray(vPosition);
+
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertexCount);
+    }
 
     /** Sets absolute X translation (world units). */
     public setX(nx:number):void{ this.x = nx; }
@@ -175,27 +161,15 @@ export abstract class RenderableObject {
 
     public getYaw():number{ return this.yaw; }
 
-    public getVertexCount():number{ return this.vertexCount;}
-
-    public getPointInWorld():vec4{ return new vec4(this.x,this.y,this.z)}
-
-    public addVerticesStartCount(count:number):void{this.startDrawing +=count;}
-
     /**
      * Must be implemented by subclasses:
      * Return the full interleaved object data (positions + colors).
      */
     public abstract getObjectData():vec4[];
 
-    protected loadingArrayHelper(face:vec4[],color:vec4[]):vec4[]{
-        let tempArr:vec4[] = [];
-
-        for (let i = 0; i < face.length; i++) {
-            tempArr.push(face[i]);
-            tempArr.push(color[i]);
-        }
-
-        return tempArr;
-
-    }
+    /**
+     * Must be implemented by subclasses:
+     * Expand a face (6 vertices + 1 color sentinel) into interleaved [pos, color] pairs.
+     */
+    protected abstract loadingArrayHelper(face:vec4[]):vec4[];
 }

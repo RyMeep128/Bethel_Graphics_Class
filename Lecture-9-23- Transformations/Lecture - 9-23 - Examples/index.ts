@@ -1,11 +1,10 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
-import {flatten, initShaders, vec4} from "./helperfunctions.js";
+import {initShaders} from "./helperfunctions.js";
 import {mat4, perspective} from "./helperfunctions.js";
 import {Cylinder} from "./Cylinder.js";
-import {RenderableObject} from "./RenderableObject.js";
-import {Car} from "./Car.js";
+import {RenderableObject} from "./RenderableObject";
 
 /**
  * @file main.ts
@@ -37,7 +36,6 @@ let gl: WebGLRenderingContext;
 let canvas: HTMLCanvasElement;
 let program: WebGLProgram;
 let objectArr:RenderableObject[];
-let car:Car;
 
 let uproj:WebGLUniformLocation; // index of projection in shader program
 
@@ -88,6 +86,9 @@ let movingForwardBool:boolean = false;
 let movingBackwardBool:boolean = false;
 let turningRightBool:boolean = false;
 let turningLeftBool:boolean = false;
+let x:boolean = false;
+let y:boolean = false;
+let z:boolean = false;
 
 /*
   The keydown function handles all key down presses,
@@ -114,6 +115,20 @@ function keyDown(event:KeyboardEvent) {
             // xoffset += util.Velocity;
             turningRightBool = true;
             break;
+        case "x":
+            console.log("x");
+            // xoffset -= util.Velocity;
+            x = true;
+            break;
+        case "y":
+            console.log("y");
+            y = true;
+            break;
+        case "z":
+            console.log("z");
+            // xoffset += util.Velocity;
+            z = true;
+            break;
         case " ":
             console.log("space");
             objectArr[3].addYaw(util.Rotation)
@@ -127,29 +142,43 @@ function keyDown(event:KeyboardEvent) {
   @param event the keyboard event
  */
 function keyUp(event:KeyboardEvent) {
-    switch(event.key) {
-        case "w":
-            console.log("w");
-            movingForwardBool = false;
-            break;
-        case "a":
-            console.log("a");
-            // xoffset -= util.Velocity;
-            turningLeftBool = false;
-            break;
-        case "s":
-            console.log("s");
-            movingBackwardBool = false;
-            break;
-        case "d":
-            console.log("d");
-            // xoffset += util.Velocity;
-            turningRightBool = false;
-            break;
-        default:
-            console.log("stop");
-            break;
-    }
+    // switch(event.key) {
+    //     case "w":
+    //         console.log("w");
+    //         movingForwardBool = false;
+    //         break;
+    //     case "a":
+    //         console.log("a");
+    //         // xoffset -= util.Velocity;
+    //         turningLeftBool = false;
+    //         break;
+    //     case "s":
+    //         console.log("s");
+    //         movingBackwardBool = false;
+    //         break;
+    //     case "d":
+    //         console.log("d");
+    //         // xoffset += util.Velocity;
+    //         turningRightBool = false;
+    //         break;
+    //     case "x":
+    //         console.log("x stop");
+    //         // xoffset -= util.Velocity;
+    //         x = false;
+    //         break;
+    //     case "y":
+    //         console.log("y stop");
+    //         y = false;
+    //         break;
+    //     case "z":
+    //         console.log("z stop");
+    //         // xoffset += util.Velocity;
+    //         z = false;
+    //         break;
+    //     default:
+    //         console.log("stop");
+    //         break;
+    // }
 }
 
 /**
@@ -158,49 +187,21 @@ function keyUp(event:KeyboardEvent) {
  */
 function initView() {
 
-    let ground:Cube = new Cube(gl,program,objectArr, 50, .01, 100,0,-1,0);
-    ground.setAllColor(Color.DARKGREEN);
-    objectArr.push(ground);
+    // let cube1:Cube = new Cube(gl,program, 1, 1, 1,0,0,0);
+    // cube1.setAllColor(Color.DARKGREEN);
+    // cube1.bufferObject();
+    // objectArr.push(cube1);
 
-    let building:Cube = new Cube(gl,program,objectArr,1,5, 1, 5,6, 0);
-    building.setAllColor(Color.SILVER);
-    objectArr.push(building);
+    let cube2:Cube = new Cube(gl,program, 1, 1, 1,0,0,0);
+    cube2.setColors(Color.DARKGREEN,Color.BLUE,Color.AQUAMARINE,Color.CORNSILK,Color.DEEPPINK,Color.CORAL);
+    cube2.bufferObject();
+    cube2.bind(0);
+    objectArr.push(cube2);
 
-    //We'll split this off to its own function for clarity, but we need something to make a picture of
-    makeCubes();
 
-    bufferData();
-}
-
-/**
- * Constructs two colored cubes, assigns face colors,
- * uploads their data to the GPU, and pushes them into the object array.
- */
-function makeCubes(){
-
-    //front face = 6 verts, position then color
-    // let testCube = new Cube(gl,program,objectArr,1,.5,3);
-    // testCube.setColors(Color.BEIGE,Color.GOLD,Color.RED,Color.BLUE,Color.GREEN,Color.MAROON);
-    // testCube.bind(0);
-    // objectArr.push(testCube);
-
-    car = new Car(gl,program,objectArr,1,1,3);
-    // car.setBodyColor(Color.DEEPPINK);
-    car.bind(0);
-    objectArr.push(car);
-
-    let testCube2 = new Cube(gl,program,objectArr,1,1,1);
-    testCube2.setColors(Color.CYAN,Color.HONEYDEW,Color.PINK,Color.PURPLE,Color.GREEN,Color.SILVER);
-    objectArr.push(testCube2);
-
-    // let testCylinder:Cylinder = new Cylinder(gl,program,objectArr,1,.5);
-    // testCylinder.setAllColor(Color.ORANGE,Color.YELLOW,Color.BLUE);
-    // testCylinder.bind(0);
-    // testCylinder.addPitch(90);
-    // testCylinder.addYaw(90);
-    // objectArr.push(testCylinder);
 
 }
+
 
 /**
  * Game loop update function; requests the next render frame.
@@ -227,6 +228,10 @@ function render(){
     for (let i = 0; i < objectArr.length; i++) {
         if(objectArr[i].getBinding() == 0){
             moveObjects(i);
+            objectArr[i].draw();
+            objectArr[i].setX(1);
+            objectArr[i].setY(1);
+            objectArr[i].draw();
         }
         objectArr[i].update();
         objectArr[i].draw();
@@ -235,40 +240,25 @@ function render(){
 
 function moveObjects(i:number){
     if(movingForwardBool){
-        car.moveCarFoward();
+        objectArr[i].addZ(-util.Velocity);
     }
     if(movingBackwardBool){
-        car.moveCarBackward();
+        objectArr[i].addZ(util.Velocity);
     }
     if(turningRightBool){
-        car.turnRight();
-    }else{
-        car.stopTurningRight();
+        objectArr[i].addX(util.Velocity);
     }
     if(turningLeftBool){
-        car.turnLeft();
-    }else{
-        car.stopTurningLeft();
+        objectArr[i].addX(-util.Velocity);
     }
-}
-
-function bufferData():void{
-    const objectPoints:vec4[] = []
-    for (let i = 0; i < objectArr.length; i++) {
-        objectPoints.push(...objectArr[i].getObjectData());
+    if(y){
+        objectArr[i].addYaw(util.Rotation);
     }
-
-    let bufferId = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(objectPoints), gl.STATIC_DRAW);
-
-    // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes
-    let vColor = gl.getAttribLocation(program, "vColor");
-    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
-    gl.enableVertexAttribArray(vColor);
-
-    let vPosition = gl.getAttribLocation(program, "vPosition");
-    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
-    gl.enableVertexAttribArray(vPosition);
+    if(x){
+        objectArr[i].addPitch(util.Rotation);
+    }
+    if(z){
+        objectArr[i].addRoll(util.Rotation);
+    }
 
 }

@@ -242,6 +242,7 @@ function update(){
     requestAnimationFrame(render);
 }
 
+let otherTheta = 0;
 //draw a new frame
 function render(){
     //start by clearing any previous data for both color and depth
@@ -256,12 +257,17 @@ function render(){
     //TODO construct a model view matrix and send it as a uniform to the vertex shader
     
     //look at params: where is the camera? what is a location the camera is lookng at? what direction is up?
-    let mv:mat4 = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
+    let com = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
+    let mv:mat4 = com;
+
+    theta += 1;
+
+    otherTheta +=.05;
 
     //multiplay translate matrix to the right of lookat Matrix
     mv = mv.mult(translate(xoffset,yoffset,zoffset));
     mv = mv.mult(scalem(scale,scale,scale));
-    mv = mv.mult(rotateX(theta));
+    mv = mv.mult(rotateY(theta));
 
     gl.uniformMatrix4fv(umv, false, mv.flatten());
 
@@ -270,6 +276,26 @@ function render(){
     //draw the geometry we previously sent over.  It's a list of 12 triangle(s),
     //we want to start at index 0, and there will be a total of 36 vertices (6 faces with 6 vertices each)
     gl.drawArrays(gl.TRIANGLES, 0, 36);    // draw the cube
+
+    mv = com;
+
+
+    otherTheta += 1;
+
+    //multiplay translate matrix to the right of lookat Matrix
+    mv = mv.mult(rotateY(otherTheta));
+    mv = mv.mult(translate(5+xoffset,0+yoffset,zoffset));
+    mv = mv.mult(scalem(scale,scale,scale));
+    mv = mv.mult(rotateY(-otherTheta));
+    mv = mv.mult(rotateX(theta));
+
+    gl.uniformMatrix4fv(umv, false, mv.flatten());
+
+    gl.drawArrays(gl.TRIANGLES, 0, 36);    // draw the cube
+
+
+
+
 
 
 }

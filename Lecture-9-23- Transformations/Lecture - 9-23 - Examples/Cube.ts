@@ -33,17 +33,7 @@ export class Cube extends RenderableObject{
     private topFace: vec4[] = [];
     /** Accumulates 6 triangle vertices + 1 final color vec4 sentinel (index = length-1). */
     private bottomFace: vec4[] = [];
-    
-    private frontFaceColor: vec4[] = [];
-    private backFaceColor: vec4[] = [];
-    private leftFaceColor: vec4[] = [];
-    private rightFaceColor: vec4[] = [];
-    private topFaceColor: vec4[] = [];
-    private bottomFaceColor: vec4[] = [];
 
-    private width:number;
-    private height:number;
-    private depth:number;
 
 
 
@@ -57,14 +47,11 @@ export class Cube extends RenderableObject{
      * @param height  Cube height (y-span)
      * @param depth   Cube depth (z-span)
      */
-    constructor(gl:WebGLRenderingContext, program: WebGLProgram,objectArr:RenderableObject[] ,width: number, height: number, depth: number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
-        super(gl,program,objectArr,6,x,y,z,yaw,pitch,roll);
+    constructor(gl:WebGLRenderingContext, program: WebGLProgram,width: number, height: number, depth: number, x:number = 0,y:number = 0 ,z:number = 0, pitch:number = 0, yaw:number = 0, roll:number = 0) {
+        super(gl,program,6,x,y,z,yaw,pitch,roll);
         let hx = width / 2;
         let hy = height / 2;
         let hz = depth / 2;
-        this.width = width;
-        this.height = height;
-        this.depth = depth;
 
 
         // Build 6 faces as two triangles each (6 vertices per face). Color sentinel pushed later.
@@ -125,32 +112,62 @@ export class Cube extends RenderableObject{
      * @param color RGBA color as vec4 (0..1)
      */
     public setFrontFaceColor(color: vec4) {
-        this.frontFaceColor = this.helperColor(color,this.frontFace);
+        if(this.frontFace.length == this.vertexCount / this.sides + 1){
+            this.frontFace.pop();
+            this.frontFace.push(color);
+        }else{
+            this.frontFace.push(color);
+        }
     }
 
     /** Sets/overwrites the back face color sentinel. */
     public setBackFaceColor(color: vec4) {
-        this.backFaceColor = this.helperColor(color,this.backFace);
+        if(this.backFace.length == this.vertexCount / this.sides + 1){
+            this.backFace.pop();
+            this.backFace.push(color);
+        }else{
+            this.backFace.push(color);
+        }
     }
 
     /** Sets/overwrites the left face color sentinel. */
     public setLeftFaceColor(color: vec4) {
-        this.leftFaceColor = this.helperColor(color,this.leftFace);
+        if(this.leftFace.length == this.vertexCount / this.sides + 1){
+            this.leftFace.pop();
+            this.leftFace.push(color);
+        }else{
+            this.leftFace.push(color);
+        }
     }
 
     /** Sets/overwrites the right face color sentinel. */
     public setRightFaceColor(color: vec4) {
-        this.rightFaceColor = this.helperColor(color, this.topFace);
+        if(this.rightFace.length == this.vertexCount / this.sides + 1){
+            this.rightFace.pop();
+            this.rightFace.push(color);
+        }else{
+            this.rightFace.push(color);
+        }
     }
 
     /** Sets/overwrites the top face color sentinel. */
     public setTopFaceColor(color: vec4) {
-        this.topFaceColor = this.helperColor(color,this.topFace);
+        if(this.topFace.length == this.vertexCount / this.sides + 1){
+            this.topFace.pop();
+            this.topFace.push(color);
+        }else{
+            this.topFace.push(color);
+        }
     }
 
     /** Sets/overwrites the bottom face color sentinel. */
     public setBottomFaceColor(color: vec4) {
-        this.bottomFaceColor = this.helperColor(color,this.bottomFace);
+        if(this.bottomFace.length == this.vertexCount / this.sides+ 1){
+            this.bottomFace.pop();
+            this.bottomFace.push(color);
+        }else{
+            this.bottomFace.push(color);
+        }
     }
 
     /**
@@ -158,12 +175,21 @@ export class Cube extends RenderableObject{
      * If colors had been assigned earlier, the previous sentinels are replaced.
      */
     public setColors(frontColor: vec4, backColor: vec4, topColor: vec4, bottomColor: vec4, rightColor:vec4, leftColor:vec4) {
-        this.setFrontFaceColor(frontColor);
-        this.setBackFaceColor(backColor);
-        this.setLeftFaceColor(leftColor);
-        this.setRightFaceColor(rightColor);
-        this.setTopFaceColor(topColor);
-        this.setBottomFaceColor(bottomColor);
+        if(this.frontFace.length == this.vertexCount / this.sides + 1){
+            this.frontFace.pop();
+            this.backFace.pop();
+            this.topFace.pop();
+            this.bottomFace.pop();
+            this.rightFace.pop();
+            this.leftFace.pop();
+        }
+        this.frontFace.push(frontColor);
+        this.backFace.push(backColor);
+        this.topFace.push(topColor);
+        this.bottomFace.push(bottomColor);
+        this.rightFace.push(rightColor);
+        this.leftFace.push(leftColor);
+
     }
 
     /**
@@ -171,12 +197,20 @@ export class Cube extends RenderableObject{
      * If colors had been assigned earlier, the previous sentinels are replaced.
      */
     public setAllColor(color:vec4){
-        this.setFrontFaceColor(color);
-        this.setBackFaceColor(color);
-        this.setLeftFaceColor(color);
-        this.setRightFaceColor(color);
-        this.setTopFaceColor(color);
-        this.setBottomFaceColor(color);
+        if(this.frontFace.length == this.vertexCount / this.sides + 1) {
+            this.frontFace.pop();
+            this.backFace.pop();
+            this.topFace.pop();
+            this.bottomFace.pop();
+            this.rightFace.pop();
+            this.leftFace.pop();
+        }
+        this.frontFace.push(color);
+        this.backFace.push(color);
+        this.topFace.push(color);
+        this.bottomFace.push(color);
+        this.rightFace.push(color);
+        this.leftFace.push(color);
     }
 
     /**
@@ -189,27 +223,38 @@ export class Cube extends RenderableObject{
     public override getObjectData():vec4[]{
         let tempArr:vec4[] = [];
 
-        tempArr.push(...this.loadingArrayHelper(this.frontFace,this.frontFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.backFace,this.backFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.topFace,this.topFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.bottomFace,this.bottomFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.leftFace,this.leftFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.rightFace,this.rightFaceColor));
+        tempArr.push(...this.loadingArrayHelper(this.frontFace));
+        tempArr.push(...this.loadingArrayHelper(this.backFace));
+        tempArr.push(...this.loadingArrayHelper(this.topFace));
+        tempArr.push(...this.loadingArrayHelper(this.bottomFace));
+        tempArr.push(...this.loadingArrayHelper(this.leftFace));
+        tempArr.push(...this.loadingArrayHelper(this.rightFace));
 
         return tempArr;
 
     }
 
-    public getDepth():number{
-        return this.depth;
-    }
+    /**
+     * Helper to expand a single face into interleaved [pos, color] vec4 pairs.
+     * <p><b>Precondition:</b> face must contain 6 position vec4s followed by exactly 1 color vec4 sentinel
+     * (length == vertexCount/sides + 1). The loop intentionally avoids the last element (the color)
+     * and pairs each position with that final color.</p>
+     *
+     * @throws Error if the face is missing its color sentinel.
+     */
+    protected override loadingArrayHelper(face:vec4[]):vec4[]{
+        if(face.length != this.vertexCount / this.sides + 1){
+            throw new Error("A color has not been assigned to one of this objects Face's");
+        }
+        let tempArr:vec4[] = [];
+        //we don't go all the way through the array.
+        for (let i = 0; i < face.length-1; i++) {
+            tempArr.push(face[i]);
+            tempArr.push(face[face.length-1]);
+        }
 
-    public getHeight():number{
-        return this.height;
-    }
+        return tempArr;
 
-    public getWidth():number{
-        return this.width;
     }
 
 

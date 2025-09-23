@@ -1,9 +1,9 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
-import { initShaders } from "./helperfunctions.js";
+import { flatten, initShaders } from "./helperfunctions.js";
 import { perspective } from "./helperfunctions.js";
-import { Cylinder } from "./Cylinder.js";
+import { Car } from "./Car.js";
 /**
  * @file main.ts
  * @author Ryan Shafer
@@ -32,6 +32,7 @@ let gl;
 let canvas;
 let program;
 let objectArr;
+let car;
 let uproj; // index of projection in shader program
 window.onload = init;
 /**
@@ -135,35 +136,39 @@ function keyUp(event) {
  * Adds them to the global object array for update/render cycle.
  */
 function initView() {
-    let ground = new Cube(gl, program, 50, .01, 100, 0, -1, 0);
+    let ground = new Cube(gl, program, objectArr, 50, .01, 100, 0, -1, 0);
     ground.setAllColor(Color.DARKGREEN);
-    ground.bufferObject();
     objectArr.push(ground);
+    let building = new Cube(gl, program, objectArr, 1, 5, 1, 5, 6, 0);
+    building.setAllColor(Color.SILVER);
+    objectArr.push(building);
     //We'll split this off to its own function for clarity, but we need something to make a picture of
-    makeCubeAndBuffer();
+    makeCubes();
+    bufferData();
 }
 /**
  * Constructs two colored cubes, assigns face colors,
  * uploads their data to the GPU, and pushes them into the object array.
  */
-function makeCubeAndBuffer() {
+function makeCubes() {
     //front face = 6 verts, position then color
-    let testCube = new Cube(gl, program, 1, .5, 3);
-    testCube.setColors(Color.BEIGE, Color.GOLD, Color.RED, Color.BLUE, Color.GREEN, Color.MAROON);
-    testCube.bufferObject();
-    testCube.bind(0);
-    objectArr.push(testCube);
-    let testCube2 = new Cube(gl, program, 1, 1, 1);
+    // let testCube = new Cube(gl,program,objectArr,1,.5,3);
+    // testCube.setColors(Color.BEIGE,Color.GOLD,Color.RED,Color.BLUE,Color.GREEN,Color.MAROON);
+    // testCube.bind(0);
+    // objectArr.push(testCube);
+    car = new Car(gl, program, objectArr, 1, 1, 3);
+    // car.setBodyColor(Color.DEEPPINK);
+    car.bind(0);
+    objectArr.push(car);
+    let testCube2 = new Cube(gl, program, objectArr, 1, 1, 1);
     testCube2.setColors(Color.CYAN, Color.HONEYDEW, Color.PINK, Color.PURPLE, Color.GREEN, Color.SILVER);
-    testCube2.bufferObject();
     objectArr.push(testCube2);
-    let testCylinder = new Cylinder(gl, program, 1, .5);
-    testCylinder.setAllColor(Color.ORANGE, Color.YELLOW, Color.BLUE);
-    testCylinder.bind(0);
-    testCylinder.addPitch(90);
-    testCylinder.addYaw(90);
-    testCylinder.bufferObject();
-    objectArr.push(testCylinder);
+    // let testCylinder:Cylinder = new Cylinder(gl,program,objectArr,1,.5);
+    // testCylinder.setAllColor(Color.ORANGE,Color.YELLOW,Color.BLUE);
+    // testCylinder.bind(0);
+    // testCylinder.addPitch(90);
+    // testCylinder.addYaw(90);
+    // objectArr.push(testCylinder);
 }
 /**
  * Game loop update function; requests the next render frame.
@@ -194,15 +199,37 @@ function render() {
 }
 function moveObjects(i) {
     if (movingForwardBool) {
-        objectArr[i].addZ(-util.Velocity);
+        car.moveCarFoward();
     }
     if (movingBackwardBool) {
-        objectArr[i].addZ(util.Velocity);
+        car.moveCarBackward();
     }
     if (turningRightBool) {
-        objectArr[i].addYaw(-util.Rotation);
+        car.turnRight();
+    }
+    else {
+        car.stopTurningRight();
     }
     if (turningLeftBool) {
-        objectArr[i].addYaw(util.Rotation);
+        car.turnLeft();
     }
+    else {
+        car.stopTurningLeft();
+    }
+}
+function bufferData() {
+    const objectPoints = [];
+    for (let i = 0; i < objectArr.length; i++) {
+        objectPoints.push(...objectArr[i].getObjectData());
+    }
+    let bufferId = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(objectPoints), gl.STATIC_DRAW);
+    // Attribute setup assumes interleaved layout: [pos vec4][color vec4], stride 32 bytes
+    let vColor = gl.getAttribLocation(program, "vColor");
+    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
+    gl.enableVertexAttribArray(vColor);
+    let vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
+    gl.enableVertexAttribArray(vPosition);
 }
