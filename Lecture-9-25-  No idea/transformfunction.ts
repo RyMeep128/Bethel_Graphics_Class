@@ -98,7 +98,8 @@ window.onload = function init() {
 
     //we'll talk more about this in a future lecture, but this is saying what part of the canvas
     //we want to draw to.  In this case, that's all of it.
-    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.viewport(0, 0, gl.drawingBufferWidth/2, gl.drawingBufferHeight/2);
+
 
     //What color do you want the background to be?  This sets it to black and opaque.
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -242,26 +243,52 @@ function update(){
     requestAnimationFrame(render);
 }
 
+let otherTheta = 0;
 //draw a new frame
 function render(){
     //start by clearing any previous data for both color and depth
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     //we'll discuss projection matrices in a couple of days, but use this for now:
+
+    gl.viewport(0, 0, gl.drawingBufferWidth/2, gl.drawingBufferHeight/2);
+    //look at params: where is the camera? what is a location the camera is lookng at? what direction is up?
+    let com = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
+    let mv:mat4 = com;
+    drawCube(mv,com);
+
+
+    gl.viewport(gl.drawingBufferWidth/2, 0, gl.drawingBufferWidth/2, gl.drawingBufferHeight/2);
+    com = lookAt(new vec4(0,10,0,1), new vec4(0,0,0,1), new vec4(0,0,-1,0));
+    mv = com;
+
+    drawCube(mv,com);
+
+
+
+
+
+
+}
+
+function drawCube(mv:mat4,com:mat4){
     let p:mat4 = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
     gl.uniformMatrix4fv(uproj, false, p.flatten());
 
     //now set up the model view matrix and send it over as a uniform
     //the inputs to this lookAt are to move back 20 units, point at the origin, and the positive y axis is up
     //TODO construct a model view matrix and send it as a uniform to the vertex shader
-    
-    //look at params: where is the camera? what is a location the camera is lookng at? what direction is up?
-    let mv:mat4 = lookAt(new vec4(0,10,20,1), new vec4(0,0,0,1), new vec4(0,1,0,0));
+
+
+
+    theta += 1;
+
+    otherTheta +=.05;
 
     //multiplay translate matrix to the right of lookat Matrix
     mv = mv.mult(translate(xoffset,yoffset,zoffset));
     mv = mv.mult(scalem(scale,scale,scale));
-    mv = mv.mult(rotateX(theta));
+    mv = mv.mult(rotateY(theta));
 
     gl.uniformMatrix4fv(umv, false, mv.flatten());
 
@@ -272,4 +299,19 @@ function render(){
     gl.drawArrays(gl.TRIANGLES, 0, 36);    // draw the cube
 
 
+    mv = com;
+
+
+    otherTheta += 1;
+
+    //multiplay translate matrix to the right of lookat Matrix
+    mv = mv.mult(rotateY(otherTheta));
+    mv = mv.mult(translate(5+xoffset,0+yoffset,zoffset));
+    mv = mv.mult(scalem(scale,scale,scale));
+    mv = mv.mult(rotateY(-otherTheta));
+    mv = mv.mult(rotateX(theta));
+
+    gl.uniformMatrix4fv(umv, false, mv.flatten());
+
+    gl.drawArrays(gl.TRIANGLES, 0, 36);    // draw the cube
 }

@@ -88,7 +88,7 @@ export class Car extends RenderableObject{
         this.addX(util.Velocity * Math.sin(toradians(phi)));
         this.addZ(util.Velocity * Math.cos(toradians(phi)));
         this.wheel.addPitch(util.Rotation*10);
-        this.yaw = this.yaw - (this.wheelTheta * .05);
+        this.yaw = this.yaw + (this.wheelTheta * .05);
     }
 
     public turnRight(){

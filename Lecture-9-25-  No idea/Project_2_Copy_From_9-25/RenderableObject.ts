@@ -144,6 +144,10 @@ export abstract class RenderableObject {
     }
 
 
+
+
+
+
     protected helperColor(color:vec4, face:vec4[]):vec4[]{
         let tempArr:vec4[] = [];
         for (let i = 0; i < face.length; i++) {
