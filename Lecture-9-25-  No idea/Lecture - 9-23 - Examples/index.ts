@@ -1,0 +1,264 @@
+import * as util from "./util.js";
+import * as Color from "./Color.js";
+import { Cube } from "./Cube.js";
+import {initShaders} from "./helperfunctions.js";
+import {mat4, perspective} from "./helperfunctions.js";
+import {Cylinder} from "./Cylinder.js";
+import {RenderableObject} from "./RenderableObject";
+
+/**
+ * @file main.ts
+ * @author Ryan Shafer
+ * @author Some comments by ChatGPT Model 5
+ *
+ * Entry point for the WebGL cube rendering project.
+ * <p>
+ * This file sets up the WebGL2 rendering context, compiles and links
+ * shaders, initializes cube objects, and drives the main render loop.
+ * It also handles basic keyboard controls to translate and rotate
+ * scene objects in real time.
+ * </p>
+ *
+ * <h4>Responsibilities</h4>
+ * <ul>
+ *   <li>Configure WebGL context state (clear color, viewport, depth test)</li>
+ *   <li>Compile shader program via {@code initShaders}</li>
+ *   <li>Build scene geometry (ground plane + cubes)</li>
+ *   <li>Bind keyboard controls to manipulate cube transforms</li>
+ *   <li>Manage update/render loop (update → requestAnimationFrame → render)</li>
+ *   <li>Upload projection matrix each frame and call {@code updateAndRender()} for each cube</li>
+ * </ul>
+ */
+
+"use strict";
+
+let gl: WebGLRenderingContext;
+let canvas: HTMLCanvasElement;
+let program: WebGLProgram;
+let objectArr:RenderableObject[];
+
+let uproj:WebGLUniformLocation; // index of projection in shader program
+
+window.onload = init;
+
+/**
+ * Initializes the WebGL rendering context, shader program,
+ * and the scene. Sets up global state such as clear color,
+ * viewport, depth test, input bindings, and starts the update loop.
+ */
+function init() {
+    //Link up global vars
+    canvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
+    gl = canvas.getContext("webgl2") as WebGLRenderingContext;
+    if (!gl) {
+        alert("WebGL isn't available");
+    }
+    program = initShaders(gl, "vertex-shader", "fragment-shader");
+    // init the objectarr
+    objectArr = [];
+
+    gl.useProgram(program);
+
+    gl.clearColor(0.0,0.0,0.0,1.0);
+
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+    uproj = gl.getUniformLocation(program, "projectionMatrix");
+
+    setupKeyboardMouseBindings();
+
+    initView();
+
+    gl.enable(gl.DEPTH_TEST);
+
+    window.setInterval(update,util.FramesPerMS);
+}
+
+/**
+ * Registers keyboard listeners for movement and rotation controls.
+ */
+function setupKeyboardMouseBindings() {
+    window.addEventListener("keydown", keyDown);
+    window.addEventListener("keyup",keyUp);
+}
+
+let movingForwardBool:boolean = false;
+let movingBackwardBool:boolean = false;
+let turningRightBool:boolean = false;
+let turningLeftBool:boolean = false;
+let x:boolean = false;
+let y:boolean = false;
+let z:boolean = false;
+
+/*
+  The keydown function handles all key down presses,
+
+  @param event the keyboard event
+ */
+function keyDown(event:KeyboardEvent) {
+    switch(event.key) {
+        case "w":
+            console.log("w");
+            movingForwardBool = true;
+            break;
+        case "a":
+            console.log("a");
+            // xoffset -= util.Velocity;
+            turningLeftBool = true;
+            break;
+        case "s":
+            console.log("s");
+            movingBackwardBool = true;
+            break;
+        case "d":
+            console.log("d");
+            // xoffset += util.Velocity;
+            turningRightBool = true;
+            break;
+        case "x":
+            console.log("x");
+            // xoffset -= util.Velocity;
+            x = true;
+            break;
+        case "y":
+            console.log("y");
+            y = true;
+            break;
+        case "z":
+            console.log("z");
+            // xoffset += util.Velocity;
+            z = true;
+            break;
+        case " ":
+            console.log("space");
+            objectArr[3].addYaw(util.Rotation)
+            break;
+    }
+}
+
+/*
+  The keyup function handles all key up let go,
+
+  @param event the keyboard event
+ */
+function keyUp(event:KeyboardEvent) {
+    // switch(event.key) {
+    //     case "w":
+    //         console.log("w");
+    //         movingForwardBool = false;
+    //         break;
+    //     case "a":
+    //         console.log("a");
+    //         // xoffset -= util.Velocity;
+    //         turningLeftBool = false;
+    //         break;
+    //     case "s":
+    //         console.log("s");
+    //         movingBackwardBool = false;
+    //         break;
+    //     case "d":
+    //         console.log("d");
+    //         // xoffset += util.Velocity;
+    //         turningRightBool = false;
+    //         break;
+    //     case "x":
+    //         console.log("x stop");
+    //         // xoffset -= util.Velocity;
+    //         x = false;
+    //         break;
+    //     case "y":
+    //         console.log("y stop");
+    //         y = false;
+    //         break;
+    //     case "z":
+    //         console.log("z stop");
+    //         // xoffset += util.Velocity;
+    //         z = false;
+    //         break;
+    //     default:
+    //         console.log("stop");
+    //         break;
+    // }
+}
+
+/**
+ * Initializes scene objects such as ground and test cubes.
+ * Adds them to the global object array for update/render cycle.
+ */
+function initView() {
+
+    // let cube1:Cube = new Cube(gl,program, 1, 1, 1,0,0,0);
+    // cube1.setAllColor(Color.DARKGREEN);
+    // cube1.bufferObject();
+    // objectArr.push(cube1);
+
+    let cube2:Cube = new Cube(gl,program, 1, 1, 1,0,0,0);
+    cube2.setColors(Color.DARKGREEN,Color.BLUE,Color.AQUAMARINE,Color.CORNSILK,Color.DEEPPINK,Color.CORAL);
+    cube2.bufferObject();
+    cube2.bind(0);
+    objectArr.push(cube2);
+
+
+
+}
+
+
+/**
+ * Game loop update function; requests the next render frame.
+ */
+function update() {
+    //request a frame be drawn pls
+    requestAnimationFrame(render);
+}
+
+/**
+ * Clears the frame and renders the full scene.
+ * <p>
+ * Sets up the projection matrix, uploads it as a uniform,
+ * and calls {@code updateAndRender()} on each cube in the object array.
+ * </p>
+ */
+function render(){
+    //start by clearing any previous data for both color and depth
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    let p:mat4 = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
+    gl.uniformMatrix4fv(uproj, false, p.flatten());
+
+    for (let i = 0; i < objectArr.length; i++) {
+        if(objectArr[i].getBinding() == 0){
+            moveObjects(i);
+            objectArr[i].draw();
+            objectArr[i].setX(1);
+            objectArr[i].setY(1);
+            objectArr[i].draw();
+        }
+        objectArr[i].update();
+        objectArr[i].draw();
+    }
+}
+
+function moveObjects(i:number){
+    if(movingForwardBool){
+        objectArr[i].addZ(-util.Velocity);
+    }
+    if(movingBackwardBool){
+        objectArr[i].addZ(util.Velocity);
+    }
+    if(turningRightBool){
+        objectArr[i].addX(util.Velocity);
+    }
+    if(turningLeftBool){
+        objectArr[i].addX(-util.Velocity);
+    }
+    if(y){
+        objectArr[i].addYaw(util.Rotation);
+    }
+    if(x){
+        objectArr[i].addPitch(util.Rotation);
+    }
+    if(z){
+        objectArr[i].addRoll(util.Rotation);
+    }
+
+}
