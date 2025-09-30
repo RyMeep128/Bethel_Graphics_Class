@@ -27,7 +27,11 @@ export class Car extends RenderableObject {
     /** Wheel geometry (reused for all four corners). */
     private wheel: Cylinder;
 
-    private person:Sphere;
+    private head:Sphere;
+
+    private eye:Sphere;
+    private eyeOffset = { x: 0, y: 0, z: -0.4 };
+
 
     /** Internal steering flags (not currently used for logic). */
     private turningRight: boolean = false;
@@ -70,12 +74,15 @@ export class Car extends RenderableObject {
         // Body & wheel setup (wheel positioned/colored per draw-call)
         this.body = new Cube(gl, program, objectArr, width, halfHeight, depth);
         this.wheel = new Cylinder(gl, program, objectArr, halfHeight, height / 3);
-        this.person = new Sphere(gl,program,objectArr,.5,0,.5,-depth/2);
+        this.head = new Sphere(gl,program,objectArr,.5,0,.5,-depth/2);
+        this.eye = new Sphere(gl,program,objectArr,.2,this.head.getX()+this.eyeOffset.x,this.head.getY()+this.eyeOffset.y,this.head.getZ()+this.eyeOffset.z)
+
 
         // Ensure wheel draws after body in the shared stream
         this.wheel.addVerticesStartCount(this.body.getVertexCount());
 
-        this.person.addVerticesStartCount(this.body.getVertexCount()+this.wheel.getVertexCount());
+        this.head.addVerticesStartCount(this.body.getVertexCount()+this.wheel.getVertexCount());
+        this.eye.addVerticesStartCount(this.body.getVertexCount() + this.wheel.getVertexCount() + this.head.getVertexCount());
 
 
         this.wheel.addRoll(90);
@@ -92,9 +99,10 @@ export class Car extends RenderableObject {
         this.wheel.setMiddleBitsColor(Color.SILVER);
         this.wheel.setTopColors(Color.RAINBOW32);
         this.wheel.setBottomColors(Color.RAINBOW32);
-        this.person.setColor(Color.BLACK);
+        this.head.setColor(Color.BLACK);
+        this.eye.setColor(Color.GHOSTWHITE);
 
-        this.vertexCount = this.body.getVertexCount() + this.wheel.getVertexCount() + this.person.getVertexCount();
+        this.vertexCount = this.body.getVertexCount() + this.wheel.getVertexCount() + this.head.getVertexCount() + this.eye.getVertexCount();
     }
 
     /**
@@ -109,7 +117,7 @@ export class Car extends RenderableObject {
      * @returns `null` (by design)
      */
     public override update(parent?: mat4): mat4 {
-        return null;
+        return super.update(parent);
     }
 
     /** Internal steering angle for front wheels (degrees). */
@@ -127,15 +135,19 @@ export class Car extends RenderableObject {
      *
      * @override
      */
-    public override draw(): void {
-        const carMV: mat4 = super.update();
+    public updateAndDraw(camera:mat4): void {
+        const carMV: mat4 = this.update(camera);
 
         // Body
         this.body.update(carMV);
         this.body.draw();
 
-        this.person.update(carMV);
-        this.person.draw();
+        let headMV:mat4 = this.head.update(carMV);
+        this.head.draw();
+
+        const eyeMV:mat4 =headMV.mult(translate(this.eyeOffset.x, this.eyeOffset.y, this.eyeOffset.z));
+        this.eye.update(headMV);
+        this.eye.draw();
 
         // FRONT LEFT WHEEL
         this.wheel.setYaw(this.wheelTheta);
@@ -245,7 +257,8 @@ export class Car extends RenderableObject {
         const objectPoints: vec4[] = [];
         objectPoints.push(...this.body.getObjectData());
         objectPoints.push(...this.wheel.getObjectData());
-        objectPoints.push(...this.person.getObjectData());
+        objectPoints.push(...this.head.getObjectData());
+        objectPoints.push(...this.eye.getObjectData());
         return objectPoints;
     }
 
@@ -259,6 +272,10 @@ export class Car extends RenderableObject {
 
     public getDepth():number{
         return this.body.getDepth();
+    }
+
+    public rotateHead(theta:number){
+        this.head.addYaw(theta);
     }
 
     /**

@@ -74,5 +74,4 @@ export class Sphere extends RenderableObject{
         return this.loadingArrayHelper(this.vertices,this.colorArray);
     }
 
-
 }

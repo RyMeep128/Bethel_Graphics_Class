@@ -132,9 +132,8 @@ export abstract class RenderableObject {
      * @param parent - Optional parent model-view matrix
      * @returns The final model-view matrix after translate/rotate
      */
-    public update(parent?: mat4): mat4 {
-        let mv: mat4 = this.view(parent);
-        mv = this.translate(mv);
+    public update(parent: mat4): mat4 {
+        let mv = this.translate(parent);
         mv = this.rotate(mv);
         this.updateGPUBuffer(mv);
         return mv;
@@ -149,18 +148,10 @@ export abstract class RenderableObject {
         this.gl.uniformMatrix4fv(this.umv, false, mv.flatten());
     }
 
-    /**
-     * Computes the base model-view.
-     *
-     * @param parent - Optional parent model-view matrix
-     * @returns The parent matrix if provided; otherwise a default lookAt
-     */
-    public view(parent?: mat4): mat4 {
-        const mv: mat4 =
-            parent ??
-            lookAt(new vec4(0, 10+this.fovz, 20+this.fovz, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
-        return mv;
-    }
+    private lookAtX:number = 0;
+    private lookAtY:number = 0;
+    private lookAtZ:number = 0;
+
 
     /**
      * Applies translation to the provided matrix or to an expected parent.
@@ -361,36 +352,6 @@ export abstract class RenderableObject {
     public getPointInWorld(): vec4 {
         return new vec4(this.x, this.y, this.z);
     }
-
-    private fovz:number = 0;
-    private fovy:number = 0;
-    private fovx:number = 0;
-
-    public getFOVZ(): number {
-        return this.fovz;
-    }
-
-    public getFOVY():number{
-        return this.fovy;
-    }
-
-    public getFOVX():number{
-        return this.fovx;
-    }
-
-    public setFOVZ(nv:number){
-        this.fovz = nv;
-    }
-
-    public setFOVY(nf:number){
-        this.fovy = nf;
-    }
-
-    public setFOVX(nv:number){
-        this.fovx = nv;
-    }
-
-
 
     /**
      * Advances the starting draw offset by `count` vertices.

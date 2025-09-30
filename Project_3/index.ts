@@ -1,11 +1,12 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
-import { flatten, initShaders, vec4 } from "./helperfunctions.js";
+import {flatten, initShaders, lookAt, vec4} from "./helperfunctions.js";
 import { mat4, perspective } from "./helperfunctions.js";
 import { Cylinder } from "./Cylinder.js";
 import { RenderableObject } from "./RenderableObject.js";
 import { Car } from "./Car.js";
+import {Camera} from "./Camera.js";
 
 /**
  * @file main.ts
@@ -99,7 +100,12 @@ let fovy:number = 45.0;
 
 let dollyInBool: boolean = false;
 let dollyOutBool: boolean = false;
-let dolly:number = 0;
+let dolly:number = 1;
+
+let followCar:boolean = false;
+
+let turnHeadLeft:boolean = false;
+let turnHeadRight:boolean = false;
 
 /**
  * Key-down handler for movement input.
@@ -130,6 +136,25 @@ function keyDown(event: KeyboardEvent): void {
             zoomInBool = false;
             zoomOutBool = true;
             break;
+        case "s":
+            dollyInBool = true;
+            dollyOutBool = false;
+            break;
+        case "a":
+            dollyInBool = false;
+            dollyOutBool = true;
+            break;
+        case "f":
+            followCar = !followCar;
+            break;
+        case "z":
+            turnHeadLeft = true;
+            turnHeadRight = false;
+            break;
+        case "x":
+            turnHeadLeft = false;
+            turnHeadRight = true;
+            break;
         case " ":
             movingForwardBool = false;
             movingBackwardBool = false;
@@ -157,6 +182,11 @@ function keyUp(event: KeyboardEvent): void {
             zoomInBool = false;
             zoomOutBool = false;
             break;
+        case "s":
+        case "a":
+            dollyInBool = false;
+            dollyOutBool = false;
+            break;
         default:
             break;
     }
@@ -178,12 +208,17 @@ function checkBounds(ground:Cube, car:Car):void{
 
 }
 
+let cameraOne:Camera;
+
 /**
  * Initializes scene objects and uploads their buffers.
  * Adds ground, a building, the player car, and a test cube.
  * @returns {void}
  */
 function initView(): void {
+
+    cameraOne = new Camera();
+
     ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
     ground.setAllColor(Color.DARKGREEN);
     objectArr.push(ground);
@@ -239,23 +274,44 @@ function render(): void {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Upload projection
-    const cameraOne: mat4 = perspective(fovy, canvas.clientWidth / canvas.clientHeight,1.0,100.0);
-    gl.uniformMatrix4fv(uproj,false, cameraOne.flatten());
+    const p: mat4 = perspective(fovy, canvas.clientWidth / canvas.clientHeight,1.0,100.0);
+    gl.uniformMatrix4fv(uproj,false, p.flatten());
 
     // Update + draw in array order
     for (let i = 0; i < objectArr.length; i++) {
         if (objectArr[i].getBinding() === 0) {
-            moveObjects(i);
+            moveObjects();
             checkBounds(ground,car);
+            car.updateAndDraw(cameraOne.getCamera());
+            continue;
         }
-        if(zoomOutBool){
-            fovy--;
-        }
-        if(zoomInBool){
-            fovy++;
-        }
-        objectArr[i].update();
+        zoomAndDolly(i);
+        camera();
+        objectArr[i].update(cameraOne.getCamera());
         objectArr[i].draw();
+    }
+}
+
+function camera(){
+    if(followCar){
+        cameraOne.setCameraLook(car.getX(),car.getY(),car.getZ());
+    }else{
+        cameraOne.setCameraLook(0,0,0);
+    }
+}
+
+function zoomAndDolly(i:number){
+    if(zoomOutBool){
+        fovy--;
+    }
+    if(zoomInBool){
+        fovy++;
+    }
+    if(dollyInBool){
+        cameraOne.updateCameraz(-dolly);
+    }
+    if(dollyOutBool){
+        cameraOne.updateCameraz(dolly);
     }
 }
 
@@ -266,7 +322,7 @@ function render(): void {
  * @param {number} i - Index of the object in {@link objectArr} (unused for now)
  * @returns {void}
  */
-function moveObjects(i: number): void {
+function moveObjects(): void {
     if (movingForwardBool) {
         car.moveCarForward();
     }
@@ -282,6 +338,12 @@ function moveObjects(i: number): void {
         car.turnLeft();
     } else {
         car.stopTurningLeft();
+    }
+    if(turnHeadRight) {
+        car.rotateHead(+util.Rotation)
+    }
+    if(turnHeadLeft) {
+        car.rotateHead(-util.Rotation)
     }
 }
 
