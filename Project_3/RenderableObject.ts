@@ -158,7 +158,7 @@ export abstract class RenderableObject {
     public view(parent?: mat4): mat4 {
         const mv: mat4 =
             parent ??
-            lookAt(new vec4(0, 10, 20, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
+            lookAt(new vec4(0, 10+this.fovz, 20+this.fovz, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
         return mv;
     }
 
@@ -362,6 +362,36 @@ export abstract class RenderableObject {
         return new vec4(this.x, this.y, this.z);
     }
 
+    private fovz:number = 0;
+    private fovy:number = 0;
+    private fovx:number = 0;
+
+    public getFOVZ(): number {
+        return this.fovz;
+    }
+
+    public getFOVY():number{
+        return this.fovy;
+    }
+
+    public getFOVX():number{
+        return this.fovx;
+    }
+
+    public setFOVZ(nv:number){
+        this.fovz = nv;
+    }
+
+    public setFOVY(nf:number){
+        this.fovy = nf;
+    }
+
+    public setFOVX(nv:number){
+        this.fovx = nv;
+    }
+
+
+
     /**
      * Advances the starting draw offset by `count` vertices.
      * Useful when appending geometry into a shared buffer.
@@ -370,6 +400,10 @@ export abstract class RenderableObject {
      */
     public addVerticesStartCount(count: number): void {
         this.startDrawing += count;
+    }
+
+    public getVerticesStartingPoint():number{
+        return this.startDrawing;
     }
 
     /**

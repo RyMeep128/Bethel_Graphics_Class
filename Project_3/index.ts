@@ -93,6 +93,14 @@ let turningRightBool: boolean = false;
 /** True when left turn input active. */
 let turningLeftBool: boolean = false;
 
+let zoomInBool: boolean = false;
+let zoomOutBool: boolean = false;
+let fovy:number = 45.0;
+
+let dollyInBool: boolean = false;
+let dollyOutBool: boolean = false;
+let dolly:number = 0;
+
 /**
  * Key-down handler for movement input.
  * @param {KeyboardEvent} event - The keyboard event
@@ -113,6 +121,14 @@ function keyDown(event: KeyboardEvent): void {
             break;
         case "ArrowRight":
             turningRightBool = true;
+            break;
+        case "q":
+            zoomInBool = true;
+            zoomOutBool = false;
+            break;
+        case "w":
+            zoomInBool = false;
+            zoomOutBool = true;
             break;
         case " ":
             movingForwardBool = false;
@@ -135,6 +151,11 @@ function keyUp(event: KeyboardEvent): void {
             break;
         case "ArrowRight":
             turningRightBool = false;
+            break;
+        case "q":
+        case "w":
+            zoomInBool = false;
+            zoomOutBool = false;
             break;
         default:
             break;
@@ -218,16 +239,20 @@ function render(): void {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Upload projection
-    const p: mat4 = perspective(
-        45.0,
-        canvas.clientWidth / canvas.clientHeight,1.0,100.0);
-    gl.uniformMatrix4fv(uproj,false, p.flatten());
+    const cameraOne: mat4 = perspective(fovy, canvas.clientWidth / canvas.clientHeight,1.0,100.0);
+    gl.uniformMatrix4fv(uproj,false, cameraOne.flatten());
 
     // Update + draw in array order
     for (let i = 0; i < objectArr.length; i++) {
         if (objectArr[i].getBinding() === 0) {
             moveObjects(i);
             checkBounds(ground,car);
+        }
+        if(zoomOutBool){
+            fovy--;
+        }
+        if(zoomInBool){
+            fovy++;
         }
         objectArr[i].update();
         objectArr[i].draw();

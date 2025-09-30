@@ -4,6 +4,7 @@ import { Cube } from "./Cube.js";
 import { Cylinder } from "./Cylinder.js";
 import * as Color from "./Color.js";
 import * as util from "./util.js";
+import {Sphere} from "./Sphere.js";
 
 /**
  * Renderable car composed of a body ({@link Cube}) and a single wheel geometry ({@link Cylinder})
@@ -25,6 +26,8 @@ export class Car extends RenderableObject {
     private body: Cube;
     /** Wheel geometry (reused for all four corners). */
     private wheel: Cylinder;
+
+    private person:Sphere;
 
     /** Internal steering flags (not currently used for logic). */
     private turningRight: boolean = false;
@@ -67,9 +70,14 @@ export class Car extends RenderableObject {
         // Body & wheel setup (wheel positioned/colored per draw-call)
         this.body = new Cube(gl, program, objectArr, width, halfHeight, depth);
         this.wheel = new Cylinder(gl, program, objectArr, halfHeight, height / 3);
+        this.person = new Sphere(gl,program,objectArr,.5,0,.5,-depth/2);
 
         // Ensure wheel draws after body in the shared stream
         this.wheel.addVerticesStartCount(this.body.getVertexCount());
+
+        this.person.addVerticesStartCount(this.body.getVertexCount()+this.wheel.getVertexCount());
+
+
         this.wheel.addRoll(90);
 
         // Default paint job
@@ -84,8 +92,9 @@ export class Car extends RenderableObject {
         this.wheel.setMiddleBitsColor(Color.SILVER);
         this.wheel.setTopColors(Color.RAINBOW32);
         this.wheel.setBottomColors(Color.RAINBOW32);
+        this.person.setColor(Color.BLACK);
 
-        this.vertexCount = this.body.getVertexCount() + this.wheel.getVertexCount();
+        this.vertexCount = this.body.getVertexCount() + this.wheel.getVertexCount() + this.person.getVertexCount();
     }
 
     /**
@@ -124,6 +133,9 @@ export class Car extends RenderableObject {
         // Body
         this.body.update(carMV);
         this.body.draw();
+
+        this.person.update(carMV);
+        this.person.draw();
 
         // FRONT LEFT WHEEL
         this.wheel.setYaw(this.wheelTheta);
@@ -233,6 +245,7 @@ export class Car extends RenderableObject {
         const objectPoints: vec4[] = [];
         objectPoints.push(...this.body.getObjectData());
         objectPoints.push(...this.wheel.getObjectData());
+        objectPoints.push(...this.person.getObjectData());
         return objectPoints;
     }
 
