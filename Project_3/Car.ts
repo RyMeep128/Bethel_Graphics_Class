@@ -75,7 +75,7 @@ export class Car extends RenderableObject {
         this.body = new Cube(gl, program, objectArr, width, halfHeight, depth);
         this.wheel = new Cylinder(gl, program, objectArr, halfHeight, height / 3);
         this.head = new Sphere(gl,program,objectArr,.5,0,.5,-depth/2);
-        this.eye = new Sphere(gl,program,objectArr,.2,this.head.getX()+this.eyeOffset.x,this.head.getY()+this.eyeOffset.y,this.head.getZ()+this.eyeOffset.z)
+        this.eye = new Sphere(gl,program,objectArr,.2)
 
 
         // Ensure wheel draws after body in the shared stream
@@ -146,7 +146,7 @@ export class Car extends RenderableObject {
         this.head.draw();
 
         const eyeMV:mat4 =headMV.mult(translate(this.eyeOffset.x, this.eyeOffset.y, this.eyeOffset.z));
-        this.eye.update(headMV);
+        this.eye.update(eyeMV);
         this.eye.draw();
 
         // FRONT LEFT WHEEL
@@ -276,6 +276,10 @@ export class Car extends RenderableObject {
 
     public rotateHead(theta:number){
         this.head.addYaw(theta);
+    }
+
+    public getEye():Sphere{
+        return this.eye;
     }
 
     /**

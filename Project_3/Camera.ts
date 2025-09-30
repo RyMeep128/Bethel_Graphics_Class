@@ -92,6 +92,10 @@ export class Camera{
         this.cameraMV = lookAt(new vec4(this.camerax, this.cameray, this.cameraz, 1), new vec4(lookAtX, lookAtY,lookAtZ, 1), new vec4(0, 1, 0, 0));
     }
 
+    public setCameraPos(camerax:number ,cameray:number,cameraz:number){
+        this.cameraMV = lookAt(new vec4(camerax, cameray, cameraz, 1), new vec4(this.lookAtX, this.lookAtY,this.lookAtZ, 1), new vec4(0, 1, 0, 0));
+    }
+
     public getCamera():mat4{
         return this.cameraMV;
     }

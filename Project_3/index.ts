@@ -155,6 +155,15 @@ function keyDown(event: KeyboardEvent): void {
             turnHeadLeft = false;
             turnHeadRight = true;
             break;
+        case "1":
+            cameraIndex = 1;
+            break;
+        case "2":
+            cameraIndex = 2;
+            break;
+        case "3":
+            cameraIndex = 3;
+            break;
         case " ":
             movingForwardBool = false;
             movingBackwardBool = false;
@@ -187,6 +196,12 @@ function keyUp(event: KeyboardEvent): void {
             dollyInBool = false;
             dollyOutBool = false;
             break;
+        case "z":
+            turnHeadLeft = false;
+            break;
+        case "x":
+            turnHeadRight = false;
+            break;
         default:
             break;
     }
@@ -209,6 +224,7 @@ function checkBounds(ground:Cube, car:Car):void{
 }
 
 let cameraOne:Camera;
+let cameraTwo:Camera;
 
 /**
  * Initializes scene objects and uploads their buffers.
@@ -218,6 +234,7 @@ let cameraOne:Camera;
 function initView(): void {
 
     cameraOne = new Camera();
+    cameraTwo = new Camera();
 
     ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
     ground.setAllColor(Color.DARKGREEN);
@@ -282,22 +299,35 @@ function render(): void {
         if (objectArr[i].getBinding() === 0) {
             moveObjects();
             checkBounds(ground,car);
-            car.updateAndDraw(cameraOne.getCamera());
             continue;
         }
         zoomAndDolly(i);
-        camera();
-        objectArr[i].update(cameraOne.getCamera());
+        camera(i);
         objectArr[i].draw();
     }
 }
 
-function camera(){
-    if(followCar){
-        cameraOne.setCameraLook(car.getX(),car.getY(),car.getZ());
-    }else{
-        cameraOne.setCameraLook(0,0,0);
+function camera(i:number){
+    switch(cameraIndex){
+        case 1:{
+            if(followCar){
+                cameraOne.setCameraLook(car.getX(),car.getY(),car.getZ());
+            }else{
+                cameraOne.setCameraLook(0,0,0);
+            }
+            car.updateAndDraw(cameraOne.getCamera());
+            objectArr[i].update(cameraOne.getCamera());
+            break;
+        }
+        case 2:{
+            //TODO:Currently working in here
+            cameraTwo.setCameraPos(car.getX(),car.getY(),car.getZ());
+            car.updateAndDraw(cameraTwo.getCamera());
+            objectArr[i].update(cameraTwo.getCamera());
+            break;
+        }
     }
+
 }
 
 function zoomAndDolly(i:number){
@@ -314,6 +344,8 @@ function zoomAndDolly(i:number){
         cameraOne.updateCameraz(dolly);
     }
 }
+
+let cameraIndex = 1;
 
 /**
  * Applies input-driven motion to controlled objects (binding group 0).
@@ -340,10 +372,10 @@ function moveObjects(): void {
         car.stopTurningLeft();
     }
     if(turnHeadRight) {
-        car.rotateHead(+util.Rotation)
+        car.rotateHead(-util.Rotation)
     }
     if(turnHeadLeft) {
-        car.rotateHead(-util.Rotation)
+        car.rotateHead(util.Rotation)
     }
 }
 
