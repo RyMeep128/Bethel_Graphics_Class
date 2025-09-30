@@ -1,9 +1,12 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
-import { flatten, initShaders } from "./helperfunctions.js";
-import { perspective } from "./helperfunctions.js";
+import {flatten, initShaders, todegrees, vec4} from "./helperfunctions.js";
+import { mat4, perspective } from "./helperfunctions.js";
+import { Cylinder } from "./Cylinder.js";
+import { RenderableObject } from "./RenderableObject.js";
 import { Car } from "./Car.js";
+
 /**
  * @file main.ts
  * @description Entry point and runtime loop for the WebGL scene.
@@ -22,66 +25,84 @@ import { Car } from "./Car.js";
  * @author Ryan Shafer
  * @author Some comments by ChatGPT Model 5
  */
+
 "use strict";
+
 /** WebGL rendering context (WebGL2 requested). */
-let gl;
+let gl: WebGLRenderingContext;
 /** Canvas element hosting the GL context. */
-let canvas;
+let canvas: HTMLCanvasElement;
 /** Linked shader program. */
-let program;
+let program: WebGLProgram;
 /** Scene graph list; draw order is array order. */
-let objectArr;
+let objectArr: RenderableObject[];
 /** Player-controlled car instance. */
-let car;
-let ground;
+let car: Car;
+let ground: Cube
+
 /** Location of `projectionMatrix` uniform. */
-let uproj;
+let uproj: WebGLUniformLocation;
+
 window.onload = init;
+
 /**
  * Initializes GL, shaders, scene objects, input bindings, and starts the loop.
  * @returns {void}
  */
-function init() {
+function init(): void {
     // Link up global vars
-    canvas = document.getElementById("gl-canvas");
-    gl = canvas.getContext("webgl2");
+    canvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
+    gl = canvas.getContext("webgl2") as unknown as WebGLRenderingContext;
     if (!gl) {
         alert("WebGL isn't available");
     }
+
     program = initShaders(gl, "vertex-shader", "fragment-shader");
     objectArr = [];
+
     gl.useProgram(program);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
     uproj = gl.getUniformLocation(program, "projectionMatrix");
+
     setupKeyboardMouseBindings();
     initView();
+
     gl.enable(gl.DEPTH_TEST);
+
     // Fixed-timestep update; render is scheduled via requestAnimationFrame.
     window.setInterval(update, util.FramesPerMS);
 }
+
 /**
  * Registers keyboard listeners for movement and rotation controls.
  * @returns {void}
  */
-function setupKeyboardMouseBindings() {
+function setupKeyboardMouseBindings(): void {
     window.addEventListener("keydown", keyDown);
     window.addEventListener("keyup", keyUp);
 }
+
 /** True when forward input active. */
-let movingForwardBool = false;
+let movingForwardBool: boolean = false;
 /** True when backward input active. */
-let movingBackwardBool = false;
+let movingBackwardBool: boolean = false;
 /** True when right turn input active. */
-let turningRightBool = false;
+let turningRightBool: boolean = false;
 /** True when left turn input active. */
-let turningLeftBool = false;
+let turningLeftBool: boolean = false;
+
+let fovMeter:number = 0;
+
+let dolly:number = 0;
+
 /**
  * Key-down handler for movement input.
  * @param {KeyboardEvent} event - The keyboard event
  * @returns {void}
  */
-function keyDown(event) {
+function keyDown(event: KeyboardEvent): void {
     switch (event.key) {
         case "ArrowUp":
             movingForwardBool = true;
@@ -97,6 +118,18 @@ function keyDown(event) {
         case "ArrowRight":
             turningRightBool = true;
             break;
+        case "=":
+            fovMeter = fovMeter + util.FOVMETER;
+            break;
+        case "-":
+            fovMeter = fovMeter - util.FOVMETER;
+            break;
+        case "1":
+            dolly--;
+            break;
+        case "2":
+            dolly++;
+            break;
         case " ":
             movingForwardBool = false;
             movingBackwardBool = false;
@@ -105,12 +138,13 @@ function keyDown(event) {
             break;
     }
 }
+
 /**
  * Key-up handler for movement input.
  * @param {KeyboardEvent} event - The keyboard event
  * @returns {void}
  */
-function keyUp(event) {
+function keyUp(event: KeyboardEvent): void {
     switch (event.key) {
         case "ArrowLeft":
             turningLeftBool = false;
@@ -118,78 +152,111 @@ function keyUp(event) {
         case "ArrowRight":
             turningRightBool = false;
             break;
+        case "1":
+            dolly = 0;
+            break;
+        case "2":
+            dolly = 0;
+            break;
         default:
             break;
     }
 }
-function checkBounds(ground, car) {
+
+function checkBounds(ground:Cube, car:Car):void{
     if (car.getX() > ground.getX() + ground.getWidth()
-    // ||
-    // car.getX() + car.getWidth() < ground.getX() ||
-    // car.getZ() > ground.getZ() + ground.getDepth() ||
-    // car.getZ() + car.getDepth() < ground.getZ()
-    ) {
+        // ||
+        // car.getX() + car.getWidth() < ground.getX() ||
+        // car.getZ() > ground.getZ() + ground.getDepth() ||
+        // car.getZ() + car.getDepth() < ground.getZ()
+        )
+    {
+
         movingForwardBool = false;
         movingBackwardBool = false;
     }
+
+
 }
+
 /**
  * Initializes scene objects and uploads their buffers.
  * Adds ground, a building, the player car, and a test cube.
  * @returns {void}
  */
-function initView() {
+function initView(): void {
     ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
     ground.setAllColor(Color.DARKGREEN);
     objectArr.push(ground);
-    const building = new Cube(gl, program, objectArr, 1, 5, 1, 5, 6, 0);
+
+    const building: Cube = new Cube(gl, program, objectArr, 1, 5, 1, 5, 6, 0);
     building.setAllColor(Color.SILVER);
     objectArr.push(building);
+
     // Scene contents (car + example geometry)
     makeCubes();
+
     // Upload interleaved geometry to GPU and set attribute pointers
     bufferData();
 }
+
 /**
  * Constructs the car and a sample cube; appends them to {@link objectArr}.
  * @returns {void}
  */
-function makeCubes() {
+function makeCubes(): void {
     car = new Car(gl, program, objectArr, 1, 1, 3);
     car.bind(0);
     objectArr.push(car);
+
     const testCube2 = new Cube(gl, program, objectArr, 1, 1, 1);
-    testCube2.setColors(Color.CYAN, Color.HONEYDEW, Color.PINK, Color.PURPLE, Color.GREEN, Color.SILVER);
+    testCube2.setColors(
+        Color.CYAN,
+        Color.HONEYDEW,
+        Color.PINK,
+        Color.PURPLE,
+        Color.GREEN,
+        Color.SILVER
+    );
     objectArr.push(testCube2);
+
     // Example cylinder code retained for reference in source.
 }
+
 /**
  * Fixed-timestep update hook; schedules the next render frame.
  * @returns {void}
  */
-function update() {
+function update(): void {
     requestAnimationFrame(render);
 }
+
 /**
  * Clears the frame, uploads projection, advances motion, and draws the scene.
  * @returns {void}
  */
-function render() {
+function render(): void {
     // Clear color and depth
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
     // Upload projection
-    const p = perspective(45.0, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
-    gl.uniformMatrix4fv(uproj, false, p.flatten());
+    const p: mat4 = perspective(
+        20.0+fovMeter,
+        canvas.clientWidth / canvas.clientHeight,1.0,100);
+    gl.uniformMatrix4fv(uproj,false, p.flatten());
+
     // Update + draw in array order
     for (let i = 0; i < objectArr.length; i++) {
         if (objectArr[i].getBinding() === 0) {
             moveObjects(i);
-            checkBounds(ground, car);
+            checkBounds(ground,car);
         }
+        objectArr[i].setView(objectArr[i].getViewMod() + dolly);
         objectArr[i].update();
         objectArr[i].draw();
     }
 }
+
 /**
  * Applies input-driven motion to controlled objects (binding group 0).
  * Currently routes inputs to the single {@link car} instance.
@@ -197,7 +264,7 @@ function render() {
  * @param {number} i - Index of the object in {@link objectArr} (unused for now)
  * @returns {void}
  */
-function moveObjects(i) {
+function moveObjects(i: number): void {
     if (movingForwardBool) {
         car.moveCarForward();
     }
@@ -206,34 +273,36 @@ function moveObjects(i) {
     }
     if (turningRightBool) {
         car.turnRight();
-    }
-    else {
+    } else {
         car.stopTurningRight();
     }
     if (turningLeftBool) {
         car.turnLeft();
-    }
-    else {
+    } else {
         car.stopTurningLeft();
     }
 }
+
 /**
  * Builds a single interleaved VBO from all renderables and configures attributes.
  * Layout: `[pos vec4][color vec4]`, stride 32 bytes (offsets 0/16).
  * @returns {void}
  */
-function bufferData() {
-    const objectPoints = [];
+function bufferData(): void {
+    const objectPoints: vec4[] = [];
     for (let i = 0; i < objectArr.length; i++) {
         objectPoints.push(...objectArr[i].getObjectData());
     }
+
     const bufferId = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(objectPoints), gl.STATIC_DRAW);
+
     // Attribute setup assumes interleaved layout: [pos vec4][color vec4]
     const vColor = gl.getAttribLocation(program, "vColor");
     gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
     gl.enableVertexAttribArray(vColor);
+
     const vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
     gl.enableVertexAttribArray(vPosition);

@@ -158,8 +158,18 @@ export abstract class RenderableObject {
     public view(parent?: mat4): mat4 {
         const mv: mat4 =
             parent ??
-            lookAt(new vec4(0, 10, 20, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
+            lookAt(new vec4(0, 10, 20+this.viewMod, 1), new vec4(0, 0, 0, 1), new vec4(0, 1, 0, 0));
         return mv;
+    }
+
+    private viewMod:number = 0;
+
+    public getViewMod(): number {
+        return this.viewMod;
+    }
+
+    public setView(nv:number){
+        this.viewMod = nv;
     }
 
     /**
