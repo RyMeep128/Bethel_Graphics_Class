@@ -1,4 +1,5 @@
-import {lookAt, mat4, vec4} from "./helperfunctions.js";
+import {lookAt, mat4, rotateX, rotateY, rotateZ, toradians, vec4} from "./helperfunctions.js";
+import {RenderableObject} from "./RenderableObject.js";
 
 export class Camera{
     public getCamerax(): number {
@@ -94,6 +95,15 @@ export class Camera{
 
     public setCameraPos(camerax:number ,cameray:number,cameraz:number){
         this.cameraMV = lookAt(new vec4(camerax, cameray, cameraz, 1), new vec4(this.lookAtX, this.lookAtY,this.lookAtZ, 1), new vec4(0, 1, 0, 0));
+    }
+
+    public lookAtObject(object:RenderableObject, offsetX:number = 0,offsetY:number = 0,offsetZ:number = 0){
+        let tx = object.getX() + Math.cos(toradians(object.getYaw()));
+        let tz = object.getZ() + Math.sin(toradians(object.getYaw()));
+        console.log("In theory x: "+tx)
+        console.log("In theory z: "+tz)
+
+        this.setCameraLook(tx, object.getY(), tz);
     }
 
     public getCamera():mat4{

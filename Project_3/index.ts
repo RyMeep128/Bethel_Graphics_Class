@@ -321,7 +321,9 @@ function camera(i:number){
         }
         case 2:{
             //TODO:Currently working in here
-            cameraTwo.setCameraPos(car.getX(),car.getY(),car.getZ());
+            let test:vec4 = car.getEyeWorldPos();
+            cameraTwo.lookAtObject(car.getHead(),3,4,3);
+            cameraTwo.setCamera(test[0],test[1]+1,test[2]+1,test[0],test[1],test[2]-2);
             car.updateAndDraw(cameraTwo.getCamera());
             objectArr[i].update(cameraTwo.getCamera());
             break;

@@ -282,6 +282,23 @@ export class Car extends RenderableObject {
         return this.eye;
     }
 
+    public getHead():Sphere{
+        return this.head;
+    }
+
+    public getEyeWorldPos(): vec4 {
+        const carM = this.getModelMatrix();
+
+        const headLocal = this.head.getModelMatrix();
+        const headWorld = carM.mult(headLocal);
+
+        const eyeM = headWorld.mult(translate(this.eyeOffset.x, this.eyeOffset.y, this.eyeOffset.z));
+
+        const p = eyeM.mult(new vec4(0, 0, 0, 1));
+        return p;
+    }
+
+
     /**
      * Triggers an immediate hard-brake behavior.
      * @remarks Placeholder for future slide/drift effects.

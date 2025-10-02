@@ -242,6 +242,14 @@ export abstract class RenderableObject {
         return this.z;
     }
 
+    public getPitch():number{
+        return this.pitch;
+    }
+
+    public getRoll():number{
+        return this.roll;
+    }
+
     /**
      * Sets absolute X translation.
      * @param nx - New X in world units
@@ -375,6 +383,18 @@ export abstract class RenderableObject {
      * `[pos0, color0, pos1, color1, ...]` where each element is a {@link vec4}
      */
     public abstract getObjectData(): vec4[];
+
+    // In RenderableObject.ts
+    public getModelMatrix(): mat4 {
+        // identity → translate → yaw → pitch → roll (matches your rotate() order)
+        let m:mat4 = new mat4();
+        m = m.mult(translate(this.x, this.y, this.z));
+        m = m.mult(rotateY(this.yaw));
+        m = m.mult(rotateX(this.pitch));
+        m = m.mult(rotateZ(this.roll));
+        return m;
+    }
+
 
     /**
      * Interleaves position and color arrays for a single face.
