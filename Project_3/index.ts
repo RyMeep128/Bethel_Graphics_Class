@@ -1,12 +1,12 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
-import {flatten, initShaders, lookAt, vec4} from "./helperfunctions.js";
+import { flatten, initShaders, lookAt, vec4 } from "./helperfunctions.js";
 import { mat4, perspective } from "./helperfunctions.js";
 import { Cylinder } from "./Cylinder.js";
 import { RenderableObject } from "./RenderableObject.js";
 import { Car } from "./Car.js";
-import {Camera} from "./Camera.js";
+import { Camera } from "./Camera.js";
 
 /**
  * @file main.ts
@@ -22,9 +22,6 @@ import {Camera} from "./Camera.js";
  * - Interleaved VBO layout: [pos vec4][color vec4], stride 32 bytes (offsets 0/16)
  * - Object-specific transforms handled via each object's `update()` method
  * - Objects with `binding === 0` receive movement input in {@link moveObjects}
- *
- * @author Ryan Shafer
- * @author Some comments by ChatGPT Model 5
  */
 
 "use strict";
@@ -39,10 +36,43 @@ let program: WebGLProgram;
 let objectArr: RenderableObject[];
 /** Player-controlled car instance. */
 let car: Car;
-let ground: Cube
+/** Ground plane. */
+let ground: Cube;
 
 /** Location of `projectionMatrix` uniform. */
 let uproj: WebGLUniformLocation;
+
+/** Primary and secondary cameras; index selects active. */
+let cameraOne: Camera;
+let cameraTwo: Camera;
+/** Active camera selector (1, 2, or 3 for special view). */
+let cameraIndex = 1;
+
+/** True when forward input active. */
+let movingForwardBool: boolean = false;
+/** True when backward input active. */
+let movingBackwardBool: boolean = false;
+/** True when right turn input active. */
+let turningRightBool: boolean = false;
+/** True when left turn input active. */
+let turningLeftBool: boolean = false;
+
+/** Zoom (FOV) controls. */
+let zoomInBool: boolean = false;
+let zoomOutBool: boolean = false;
+/** Field-of-view in degrees for perspective projection. */
+let fovy: number = 45.0;
+
+/** Camera dolly controls (move camera along its view direction). */
+let dollyInBool: boolean = false;
+let dollyOutBool: boolean = false;
+
+/** Toggle: have camera one look at the car or the origin. */
+let followCar: boolean = false;
+
+/** Head (sphere) rotation controls on the car. */
+let turnHeadLeft: boolean = false;
+let turnHeadRight: boolean = false;
 
 window.onload = init;
 
@@ -85,31 +115,9 @@ function setupKeyboardMouseBindings(): void {
     window.addEventListener("keyup", keyUp);
 }
 
-/** True when forward input active. */
-let movingForwardBool: boolean = false;
-/** True when backward input active. */
-let movingBackwardBool: boolean = false;
-/** True when right turn input active. */
-let turningRightBool: boolean = false;
-/** True when left turn input active. */
-let turningLeftBool: boolean = false;
-
-let zoomInBool: boolean = false;
-let zoomOutBool: boolean = false;
-let fovy:number = 45.0;
-
-let dollyInBool: boolean = false;
-let dollyOutBool: boolean = false;
-let dolly:number = 1;
-
-let followCar:boolean = false;
-
-let turnHeadLeft:boolean = false;
-let turnHeadRight:boolean = false;
-
 /**
- * Key-down handler for movement input.
- * @param {KeyboardEvent} event - The keyboard event
+ * Key-down handler for movement/input controls.
+ * @param {KeyboardEvent} event - The keyboard event.
  * @returns {void}
  */
 function keyDown(event: KeyboardEvent): void {
@@ -129,23 +137,33 @@ function keyDown(event: KeyboardEvent): void {
             turningRightBool = true;
             break;
         case "q":
-            zoomInBool = true;
-            zoomOutBool = false;
+            if (cameraIndex == 1) {
+                zoomInBool = true;
+                zoomOutBool = false;
+            }
             break;
         case "w":
-            zoomInBool = false;
-            zoomOutBool = true;
+            if (cameraIndex == 1) {
+                zoomInBool = false;
+                zoomOutBool = true;
+            }
             break;
         case "s":
-            dollyInBool = true;
-            dollyOutBool = false;
+            if (cameraIndex == 1) {
+                dollyInBool = true;
+                dollyOutBool = false;
+            }
             break;
         case "a":
-            dollyInBool = false;
-            dollyOutBool = true;
+            if (cameraIndex == 1) {
+                dollyInBool = false;
+                dollyOutBool = true;
+            }
             break;
         case "f":
-            followCar = !followCar;
+            if (cameraIndex == 1) {
+                followCar = !followCar;
+            }
             break;
         case "z":
             turnHeadLeft = true;
@@ -174,8 +192,8 @@ function keyDown(event: KeyboardEvent): void {
 }
 
 /**
- * Key-up handler for movement input.
- * @param {KeyboardEvent} event - The keyboard event
+ * Key-up handler for movement/input controls.
+ * @param {KeyboardEvent} event - The keyboard event.
  * @returns {void}
  */
 function keyUp(event: KeyboardEvent): void {
@@ -188,13 +206,17 @@ function keyUp(event: KeyboardEvent): void {
             break;
         case "q":
         case "w":
-            zoomInBool = false;
-            zoomOutBool = false;
+            if (cameraIndex == 1) {
+                zoomInBool = false;
+                zoomOutBool = false;
+            }
             break;
         case "s":
         case "a":
-            dollyInBool = false;
-            dollyOutBool = false;
+            if (cameraIndex == 1) {
+                dollyInBool = false;
+                dollyOutBool = false;
+            }
             break;
         case "z":
             turnHeadLeft = false;
@@ -202,37 +224,45 @@ function keyUp(event: KeyboardEvent): void {
         case "x":
             turnHeadRight = false;
             break;
+        case "r":
+            if (cameraIndex == 1) {
+                fovy = 45.0;
+                cameraOne.setCameraPos(0, 10, 20);
+                cameraOne.setCameraLook(0, 0, 0);
+                followCar = false;
+            }
+            break;
         default:
             break;
     }
 }
 
-function checkBounds(ground:Cube, car:Car):void{
-    if (car.getX() > ground.getX() + ground.getWidth()
-        // ||
-        // car.getX() + car.getWidth() < ground.getX() ||
-        // car.getZ() > ground.getZ() + ground.getDepth() ||
-        // car.getZ() + car.getDepth() < ground.getZ()
-        )
-    {
-
+/**
+ * Checks if the car's bounding box lies within the ground's extents.
+ * Disables forward/backward movement when leaving bounds.
+ *
+ * @param {Cube} ground - The ground object (provides world extents).
+ * @param {Car} car - The player car whose position is validated.
+ * @returns {void}
+ */
+function checkBounds(ground: Cube, car: Car): void {
+    if (
+        car.getX() - car.getDepth() < ground.getX() - ground.getWidth() / 2 ||
+        car.getX() + car.getDepth() > ground.getX() + ground.getWidth() / 2 ||
+        car.getZ() + car.getDepth() > ground.getZ() + ground.getDepth() / 2 ||
+        car.getZ() - car.getDepth() < ground.getZ() - ground.getDepth() / 2
+    ) {
         movingForwardBool = false;
         movingBackwardBool = false;
     }
-
-
 }
-
-let cameraOne:Camera;
-let cameraTwo:Camera;
 
 /**
  * Initializes scene objects and uploads their buffers.
- * Adds ground, a building, the player car, and a test cube.
+ * Adds ground, a set of buildings, and the player car.
  * @returns {void}
  */
 function initView(): void {
-
     cameraOne = new Camera();
     cameraTwo = new Camera();
 
@@ -240,38 +270,41 @@ function initView(): void {
     ground.setAllColor(Color.DARKGREEN);
     objectArr.push(ground);
 
-    const building: Cube = new Cube(gl, program, objectArr, 1, 5, 1, 5, 6, 0);
-    building.setAllColor(Color.SILVER);
-    objectArr.push(building);
-
     // Scene contents (car + example geometry)
-    makeCubes();
+    makeCar();
+
+    // Random buildings
+    for (let i = 0; i < 10; i++) {
+        const x = Math.random() * 50 - 25;
+        const y = Math.random() * 50 - 25;
+        makeBuilding(x, y, Color.RAINBOW32[i % Color.RAINBOW32.length]);
+    }
 
     // Upload interleaved geometry to GPU and set attribute pointers
     bufferData();
 }
 
 /**
- * Constructs the car and a sample cube; appends them to {@link objectArr}.
+ * Constructs the car and appends it to {@link objectArr}.
  * @returns {void}
  */
-function makeCubes(): void {
+function makeCar(): void {
     car = new Car(gl, program, objectArr, 1, 1, 3);
     car.bind(0);
     objectArr.push(car);
+}
 
-    const testCube2 = new Cube(gl, program, objectArr, 1, 1, 1);
-    testCube2.setColors(
-        Color.CYAN,
-        Color.HONEYDEW,
-        Color.PINK,
-        Color.PURPLE,
-        Color.GREEN,
-        Color.SILVER
-    );
-    objectArr.push(testCube2);
-
-    // Example cylinder code retained for reference in source.
+/**
+ * Creates a building cube at (x, 0, z) with the given color and adds it to the scene.
+ * @param {number} x - World X position.
+ * @param {number} z - World Z position.
+ * @param {vec4} color - Building color.
+ * @returns {void}
+ */
+function makeBuilding(x: number, z: number, color: vec4): void {
+    const cube: Cube = new Cube(gl, program, objectArr, 1, 5, 1, x, 0, z);
+    cube.setAllColor(color);
+    objectArr.push(cube);
 }
 
 /**
@@ -290,15 +323,24 @@ function render(): void {
     // Clear color and depth
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Upload projection
-    const p: mat4 = perspective(fovy, canvas.clientWidth / canvas.clientHeight,1.0,100.0);
-    gl.uniformMatrix4fv(uproj,false, p.flatten());
+    // ──────────────────────────────────────────────────────────────
+    // Perspective Projection
+    // ──────────────────────────────────────────────────────────────
+    // The perspective projection defines the viewing frustum:
+    // - `fovy` is the vertical field of view in degrees (adjustable via zoom controls).
+    // - The aspect ratio uses canvas width/height to avoid stretching.
+    // - Near plane = 1.0 → close enough to show ground-level detail but avoids depth precision loss.
+    // - Far plane = 100.0 → far enough to include all buildings and ground.
+    // These parameters together define a lens-like effect, simulating realistic depth.
+    const p: mat4 = perspective(fovy, canvas.clientWidth / canvas.clientHeight, 1.0, 100.0);
+
+    gl.uniformMatrix4fv(uproj, false, p.flatten());
 
     // Update + draw in array order
     for (let i = 0; i < objectArr.length; i++) {
         if (objectArr[i].getBinding() === 0) {
             moveObjects();
-            checkBounds(ground,car);
+            checkBounds(ground, car);
             continue;
         }
         zoomAndDolly(i);
@@ -307,56 +349,139 @@ function render(): void {
     }
 }
 
-function camera(i:number){
-    switch(cameraIndex){
-        case 1:{
-            if(followCar){
-                cameraOne.setCameraLook(car.getX(),car.getY(),car.getZ());
-            }else{
-                cameraOne.setCameraLook(0,0,0);
+/**
+ * Applies active camera logic based on {@link cameraIndex}.
+ * - 1: Orbit/static cam with optional follow of the car (looks at origin or car).
+ * - 2: Head-mounted camera (eye position → look forward from head).
+ * - 3: External chase-like camera using car model matrix.
+ *
+ * @param {number} i - Current object index being iterated in the render loop (used to update per-object MV).
+ * @returns {void}
+ */
+function camera(i: number): void {
+    switch (cameraIndex) {
+
+        // ──────────────────────────────────────────────────────────────
+        // CAMERA 1: Free-roaming camera
+        // ──────────────────────────────────────────────────────────────
+        // "Free-center" mode:
+        //   Eye = (0,10,20)
+        //   Target = (0,0,0)
+        //   Y=10 provides a raised, stage-view height above the ground.
+        //
+        // "Free-follow" mode:
+        //   Same eye position, but target = car position.
+        //   This mode tracks the car in real time, automatically updating
+        //   the target every frame without user input, creating a follow effect.
+        case 1: {
+            if (followCar) {
+                cameraOne.setCameraLook(car.getX(), car.getY(), car.getZ());
+            } else {
+                cameraOne.setCameraLook(0, 0, 0);
             }
             car.updateAndDraw(cameraOne.getCamera());
             objectArr[i].update(cameraOne.getCamera());
             break;
         }
-        case 2:{
-            //TODO:Currently working in here
-            let test:vec4 = car.getEyeWorldPos();
-            cameraTwo.lookAtObject(car.getHead(),3,4,3);
-            cameraTwo.setCamera(test[0],test[1]+1,test[2]+1,test[0],test[1],test[2]-2);
+
+        // ──────────────────────────────────────────────────────────────
+        // CAMERA 2: Viewpoint (First-person) camera
+        // ──────────────────────────────────────────────────────────────
+        // Eye position:
+        //   Derived from the car’s head + eye world position.
+        //   (Eye = head’s local offset converted to world space)
+        //
+        // Target:
+        //   A point d units forward along the head’s local -Z axis,
+        //   transformed to world space by (carM * headLocal * [0,0,-d,1]).
+        //   This aligns the camera’s forward direction with the rider’s gaze.
+        //   `d` is the look distance, defined by util.MagicNumber.
+        case 2: {
+            const eye = car.getEyeWorldPos();
+
+            // Build the head’s world matrix: carM * headLocal
+            const carM = car.getModelMatrix();
+            const headLocal = car.getHead().getModelMatrix();
+            const headWorld = carM.mult(headLocal);
+
+            // A point d units forward in the head's local -Z, expressed in world space:
+            const d = util.MagicNumber;
+            const target = headWorld.mult(new vec4(0, 0, -d, 1));
+
+            cameraTwo.setCameraPos(eye[0], eye[1], eye[2]);
+            cameraTwo.setCameraLook(target[0], target[1], target[2]);
+            car.updateAndDraw(cameraTwo.getCamera());
+            objectArr[i].update(cameraTwo.getCamera());
+            break;
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // CAMERA 3: Chase camera
+        // ──────────────────────────────────────────────────────────────
+        // The chase camera rides behind and above the car:
+        // - Eye = carM * (0.5, 2d, +3d, 1) → slightly right, above, and behind.
+        // - Target = carM * (0, 0, -3d, 1) → a point forward from the car.
+        // This gives a cinematic trailing shot that follows car movement and rotation.
+        // Signs are chosen assuming the car’s forward axis is -Z.
+        case 3: {
+            const carM = car.getModelMatrix();
+            const d = util.MagicNumber;
+
+            const targetLook = carM.mult(new vec4(0, 0, -3 * d, 1));
+            const targetPos = carM.mult(new vec4(0.5, 2 * d, +3 * d, 1));
+
+            cameraTwo.setCameraPos(targetPos[0], targetPos[1], targetPos[2]);
+            cameraTwo.setCameraLook(targetLook[0], targetLook[1], targetLook[2]);
             car.updateAndDraw(cameraTwo.getCamera());
             objectArr[i].update(cameraTwo.getCamera());
             break;
         }
     }
-
 }
 
-function zoomAndDolly(i:number){
-    if(zoomOutBool){
+
+/**
+ * Applies zoom (FOV) and dolly (camera Z) changes based on current input flags.
+ * Clamps against configured limits in {@link util}.
+ *
+ * @param {number} i - Current object index (unused, preserved for symmetry with render loop).
+ * @returns {void}
+ */
+function zoomAndDolly(i: number): void {
+    if (zoomOutBool) {
         fovy--;
+        if (fovy <= util.zoomMax) {
+            fovy = fovy + util.ZoomAmt;
+        }
     }
-    if(zoomInBool){
+    if (zoomInBool) {
         fovy++;
+        if (fovy >= util.zoomMin) {
+            fovy = fovy - util.ZoomAmt;
+        }
     }
-    if(dollyInBool){
-        cameraOne.updateCameraz(-dolly);
+    if (dollyInBool) {
+        cameraOne.updateCameraz(-util.DollyAmt);
+        if (cameraOne.getCameraz() <= util.dollyMin) {
+            cameraOne.updateCameraz(util.DollyAmt);
+        }
     }
-    if(dollyOutBool){
-        cameraOne.updateCameraz(dolly);
+    if (dollyOutBool) {
+        cameraOne.updateCameraz(util.DollyAmt);
+        if (cameraOne.getCameraz() >= util.dollyMax) {
+            cameraOne.updateCameraz(-util.DollyAmt);
+        }
     }
 }
-
-let cameraIndex = 1;
 
 /**
  * Applies input-driven motion to controlled objects (binding group 0).
  * Currently routes inputs to the single {@link car} instance.
  *
- * @param {number} i - Index of the object in {@link objectArr} (unused for now)
+ * @param {number} i - Index of the object in {@link objectArr} (unused for now. Set to null).
  * @returns {void}
  */
-function moveObjects(): void {
+function moveObjects(i:number = null): void {
     if (movingForwardBool) {
         car.moveCarForward();
     }
@@ -373,11 +498,11 @@ function moveObjects(): void {
     } else {
         car.stopTurningLeft();
     }
-    if(turnHeadRight) {
-        car.rotateHead(-util.Rotation)
+    if (turnHeadRight) {
+        car.rotateHead(-util.Rotation);
     }
-    if(turnHeadLeft) {
-        car.rotateHead(util.Rotation)
+    if (turnHeadLeft) {
+        car.rotateHead(util.Rotation);
     }
 }
 
