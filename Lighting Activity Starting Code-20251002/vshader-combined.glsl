@@ -26,6 +26,8 @@ uniform vec4 light_color;
 uniform vec4 ambient_light;
 
 
+uniform float time;
+
 void
 main()
 {
@@ -64,6 +66,31 @@ main()
 
     } else if(mode == 3){
 
+        ovAmbientDiffuseColor = vAmbientDiffuseColor;
+        ovNormal = vNormal;
+        ovSpecularColor = vSpecularColor;
+        ovSpecularExponent = vSpecularExponent;
+        oveyepos = model_view * vPosition;
+
+        gl_Position = projection * model_view * vPosition;
+    } else if(mode == 4){
+
+        ovAmbientDiffuseColor = vAmbientDiffuseColor;
+        ovNormal = vNormal;
+        ovSpecularColor = vSpecularColor;
+        ovSpecularExponent = vSpecularExponent;
+        oveyepos = model_view * vPosition;
+
+        gl_Position = projection * model_view * vPosition;
+    }else if(mode == 5){
+
+        ovAmbientDiffuseColor = vAmbientDiffuseColor;
+        ovNormal = vNormal;
+        ovSpecularColor = vSpecularColor;
+        ovSpecularExponent = vSpecularExponent;
+        oveyepos = model_view * vPosition;
+
+        gl_Position = projection * model_view * vPosition;
     }
 
 }
