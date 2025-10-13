@@ -80,6 +80,10 @@ export abstract class RenderableObject {
      */
     protected startDrawing: number;
 
+    protected aSpecColor:GLint;
+    protected aSpecExp:GLint;
+
+
     /**
      * Constructs a renderable object with initial transform and draw bookkeeping.
      *
@@ -117,11 +121,16 @@ export abstract class RenderableObject {
         this.gl = gl;
         this.program = program;
         this.sides = sides;
-        this.umv = gl.getUniformLocation(program, "modelViewMatrix");
+        this.umv = gl.getUniformLocation(program, "model_view");
+        this.aSpecColor = gl.getAttribLocation(program, "vSpecularColor");
+        this.aSpecExp   = gl.getAttribLocation(program, "vSpecularExponent");
+
+
         this.startDrawing = 0;
         for (let i = 0; i < objectArr.length; i++) {
             this.startDrawing += objectArr[i].getVertexCount();
         }
+
     }
 
     /**
@@ -226,6 +235,25 @@ export abstract class RenderableObject {
      * @returns {void}
      */
     public draw(): void {
+        // per-object material fields with setters
+        const specularColor = new vec4(1,1,1,1); // default
+        const specularExp   = 32.0;
+
+
+        if (this.aSpecColor !== -1) {
+            this.gl.disableVertexAttribArray(this.aSpecColor);
+            this.gl.vertexAttrib4f(this.aSpecColor,
+                specularColor[0],
+                specularColor[1],
+                specularColor[2],
+                specularColor[3]
+            );
+        }
+        if (this.aSpecExp !== -1) {
+            this.gl.disableVertexAttribArray(this.aSpecExp);
+            this.gl.vertexAttrib1f(this.aSpecExp, specularExp);
+        }
+
         this.gl.drawArrays(this.gl.TRIANGLES, this.startDrawing, this.vertexCount);
     }
 
@@ -429,12 +457,15 @@ export abstract class RenderableObject {
      * @returns {vec4[]} Interleaved `[pos, color]` array suitable for VBO uploads
      * @protected
      */
-    protected loadingArrayHelper(face: vec4[], color: vec4[]): vec4[] {
+    protected loadingArrayHelper(face: vec4[], color: vec4[], normal:vec4[]): vec4[] {
         const tempArr: vec4[] = [];
         for (let i = 0; i < face.length; i++) {
             tempArr.push(face[i]);
             tempArr.push(color[i]);
+            tempArr.push(normal[i]);
         }
         return tempArr;
     }
+
+
 }

@@ -165,23 +165,23 @@ window.onload = function init() {
 };
 
 function switchObjects(){
-    //There are a variety of ways to accomplish this, but this way is pretty straightforward
-    //note that we don't re-buffer the data, simply connect the existing buffer to a different shader program
-    gl.disableVertexAttribArray(vPosition); //incase the indices change
-    //TODO gl.disableVertexAttribArray(vNormal);
+        //There are a variety of ways to accomplish this, but this way is pretty straightforward
+        //note that we don't re-buffer the data, simply connect the existing buffer to a different shader program
+        gl.disableVertexAttribArray(vPosition); //incase the indices change
+        //TODO gl.disableVertexAttribArray(vNormal);
 
-    if(object == SPHERE) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, sphereBufferID);
-    }else{
-        // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshVertexBufferID);
-    }
+        if(object == SPHERE) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, sphereBufferID);
+        }else{
+            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, meshVertexBufferID);
+        }
 
-    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0); //stride is 32 bytes total for position, normal
-    gl.enableVertexAttribArray(vPosition);
+        gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0); //stride is 32 bytes total for position, normal
+        gl.enableVertexAttribArray(vPosition);
 
-    //TODO once we have normal vectors
-    gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 32, 16);
-    gl.enableVertexAttribArray(vNormal);
+        //TODO once we have normal vectors
+        gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 32, 16);
+        gl.enableVertexAttribArray(vNormal);
 }
 
 /**

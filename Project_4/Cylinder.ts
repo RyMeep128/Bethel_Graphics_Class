@@ -37,6 +37,10 @@ export class Cylinder extends RenderableObject {
     /** Per-vertex colors for the sidewall. */
     private middleBitsColor: vec4[];
 
+    private topCircleNormal: vec4[] = [];
+    private bottomCircleNormal: vec4[] =[];
+    private middleBitsNormal: vec4[] = [];
+
     /** (Reserved) vertices per face; not currently used. */
     private vertexPerFace: number;
 
@@ -99,14 +103,20 @@ export class Cylinder extends RenderableObject {
         for (let i = 0; i < util.Detail; i++) {
             // Top fan
             this.topCircle.push(topCenter);
+            this.topCircleNormal.push(new vec4(0, 1, 0, 0))
             this.topCircle.push(topRing[i]);
+            this.topCircleNormal.push(new vec4(0, 1, 0, 0))
             this.topCircle.push(topRing[i + 1]);
+            this.topCircleNormal.push(new vec4(0, 1, 0, 0))
             this.vertexCount += 3;
 
             // Bottom fan (winding to face outward)
             this.bottomCircle.push(bottomCenter);
+            this.bottomCircleNormal.push(new vec4(0, -1, 0, 0))
             this.bottomCircle.push(bottomRing[i + 1]);
+            this.bottomCircleNormal.push(new vec4(0, -1, 0, 0))
             this.bottomCircle.push(bottomRing[i]);
+            this.bottomCircleNormal.push(new vec4(0, -1, 0, 0))
             this.vertexCount += 3;
 
             // Sidewall (two triangles per segment)
@@ -119,8 +129,17 @@ export class Cylinder extends RenderableObject {
             this.vertexCount += 6;
         }
 
+        this.buildMiddleNormal();
+
         this.setAllColor(Color.PURPLE,Color.BLACK,Color.PURPLE);
     }
+
+    private buildMiddleNormal(){
+        for (let i = 0; i < this.middleBits.length; i++) {
+            this.middleBitsNormal.push((new vec4(this.middleBits[i][0],0,this.middleBits[i][2])).normalize());
+        }
+    }
+
 
     /**
      * Sets a solid color for the top cap (per-vertex expansion).
@@ -192,9 +211,9 @@ export class Cylinder extends RenderableObject {
     public override getObjectData(): vec4[] {
         const tempArr: vec4[] = [];
 
-        tempArr.push(...this.loadingArrayHelper(this.topCircle, this.topCircleColor));
-        tempArr.push(...this.loadingArrayHelper(this.bottomCircle, this.bottomCircleColor));
-        tempArr.push(...this.loadingArrayHelper(this.middleBits, this.middleBitsColor));
+        tempArr.push(...this.loadingArrayHelper(this.topCircle, this.topCircleColor,this.topCircleNormal));
+        tempArr.push(...this.loadingArrayHelper(this.bottomCircle, this.bottomCircleColor,this.bottomCircleNormal));
+        tempArr.push(...this.loadingArrayHelper(this.middleBits, this.middleBitsColor,this.middleBitsNormal));
 
         return tempArr;
     }

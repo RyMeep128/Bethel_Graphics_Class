@@ -37,6 +37,8 @@ export class Sphere extends RenderableObject {
     /** Flat list of per-vertex colors (vec4), same length as {@link vertices}. */
     private colorArray:vec4[] = [];
 
+    private normals:vec4[] = [];
+
     /**
      * Creates a new UV sphere and procedurally generates its triangle mesh.
      *
@@ -80,13 +82,19 @@ export class Sphere extends RenderableObject {
 
                 // Triangle 1
                 this.vertices.push(tl); this.vertexCount++;
+                this.normals.push(tl.subtract(new vec4(0,0,0,1)));
                 this.vertices.push(bl); this.vertexCount++;
+                this.normals.push(bl.subtract(new vec4(0,0,0,1)));
                 this.vertices.push(tr); this.vertexCount++;
+                this.normals.push(tr.subtract(new vec4(0,0,0,1)));
 
                 // Triangle 2
                 this.vertices.push(tr); this.vertexCount++;
+                this.normals.push(tr.subtract(new vec4(0,0,0,1)));
                 this.vertices.push(bl); this.vertexCount++;
+                this.normals.push(bl.subtract(new vec4(0,0,0,1)));
                 this.vertices.push(br); this.vertexCount++;
+                this.normals.push(br.subtract(new vec4(0,0,0,1)));
             }
         }
     }
@@ -152,7 +160,7 @@ export class Sphere extends RenderableObject {
      * @remarks Ensure {@link setColor} or {@link setGradientColor} is called before first upload.
      */
     public getObjectData(): vec4[] {
-        return this.loadingArrayHelper(this.vertices,this.colorArray);
+        return this.loadingArrayHelper(this.vertices,this.colorArray,this.normals);
     }
 
 }

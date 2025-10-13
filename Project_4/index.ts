@@ -2,11 +2,12 @@ import * as util from "./util.js";
 import * as Color from "./Color.js";
 import { Cube } from "./Cube.js";
 import { flatten, initShaders, lookAt, vec4 } from "./helperfunctions.js";
-import { mat4, perspective } from "./helperfunctions.js";
+import { mat4, perspective,initFileShaders } from "./helperfunctions.js";
 import { Cylinder } from "./Cylinder.js";
 import { RenderableObject } from "./RenderableObject.js";
 import { Car } from "./Car.js";
 import { Camera } from "./Camera.js";
+import {Sphere} from "./Sphere.js";
 
 /**
  * @file main.ts
@@ -74,6 +75,19 @@ let followCar: boolean = false;
 let turnHeadLeft: boolean = false;
 let turnHeadRight: boolean = false;
 
+let uLightPos:WebGLUniformLocation;
+let uLightColor:WebGLUniformLocation;
+let uAmbient:WebGLUniformLocation;
+
+let UNLIT:GLint = 0;
+let GOURAUD:GLint = 1;
+let PHONG:GLint = 2;
+let CEL:GLint = 3;
+let RYAN:GLint = 4;
+let umode:WebGLUniformLocation; //lighting mode
+
+
+
 window.onload = init;
 
 /**
@@ -88,14 +102,24 @@ function init(): void {
         alert("WebGL isn't available");
     }
 
-    program = initShaders(gl, "vertex-shader", "fragment-shader");
+    program = initFileShaders(gl, "vshader-combined.glsl", "fshader-combined.glsl");
     objectArr = [];
 
     gl.useProgram(program);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
 
-    uproj = gl.getUniformLocation(program, "projectionMatrix");
+    uproj = gl.getUniformLocation(program, "projection");
+
+     uLightPos   = gl.getUniformLocation(program, "light_position");
+     uLightColor = gl.getUniformLocation(program, "light_color");
+     uAmbient    = gl.getUniformLocation(program, "ambient_light");
+    umode = gl.getUniformLocation(program, "mode");
+
+    gl.uniform4f(uLightPos,   10.0, 10.0, 10.0, 1.0);
+    gl.uniform4f(uLightColor, 1.0,  1.0,  1.0,  1.0);
+    gl.uniform4f(uAmbient,    0.05,  0.05,  0.05,  1.0);
+
 
     setupKeyboardMouseBindings();
     initView();
@@ -188,6 +212,20 @@ function keyDown(event: KeyboardEvent): void {
             turningRightBool = false;
             turningLeftBool = false;
             break;
+        case "g":
+            gl.uniform1i(umode, GOURAUD);
+            break;
+        case "p":
+            gl.uniform1i(umode, PHONG);
+            break;
+        case "c": //cel shading color
+            gl.uniform1i(umode, CEL);
+            break;
+        case "r": //cel shading color
+            gl.uniform1i(umode, RYAN);
+            break;
+        default:
+            gl.uniform1i(umode, UNLIT);
     }
 }
 
@@ -266,12 +304,10 @@ function initView(): void {
     cameraOne = new Camera();
     cameraTwo = new Camera();
 
-    ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
-    ground.setAllColor(Color.DARKGREEN);
-    objectArr.push(ground);
 
     // Scene contents (car + example geometry)
-    makeCar();
+    makeDefaultScene();
+
 
     // Random buildings
     for (let i = 0; i < 10; i++) {
@@ -282,6 +318,13 @@ function initView(): void {
 
     // Upload interleaved geometry to GPU and set attribute pointers
     bufferData();
+}
+
+function makeDefaultScene(): void {
+    ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
+    ground.setAllColor(Color.DARKGREEN);
+    objectArr.push(ground);
+    makeCar();
 }
 
 /**
@@ -302,9 +345,12 @@ function makeCar(): void {
  * @returns {void}
  */
 function makeBuilding(x: number, z: number, color: vec4): void {
-    const cube: Cube = new Cube(gl, program, objectArr, 5, 20, 5, x, 0, z);
-    cube.setAllColor(color);
-    objectArr.push(cube);
+    // const cube: Cube = new Cube(gl, program, objectArr, 5, 4, 5, x, 0, z);
+    // cube.setAllColor(color);
+    // objectArr.push(cube);
+    const rock = new Sphere(gl, program, objectArr,3, x, 0 , z);
+    rock.setColor(color);
+    objectArr.push(rock);
 }
 
 /**
@@ -521,12 +567,20 @@ function bufferData(): void {
     gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(objectPoints), gl.STATIC_DRAW);
 
-    // Attribute setup assumes interleaved layout: [pos vec4][color vec4]
-    const vColor = gl.getAttribLocation(program, "vColor");
-    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 32, 16);
-    gl.enableVertexAttribArray(vColor);
+    // Attribute setup assumes interleaved layout: [pos vec4][color vec4][normal vec4]
 
     const vPosition = gl.getAttribLocation(program, "vPosition");
-    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 32, 0);
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 48, 0);
     gl.enableVertexAttribArray(vPosition);
+
+    const vColor = gl.getAttribLocation(program, "vAmbientDiffuseColor");
+    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 48, 16);
+    gl.enableVertexAttribArray(vColor);
+
+    const vNormal = gl.getAttribLocation(program, "vNormal");
+    gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 48, 32);
+    gl.enableVertexAttribArray(vNormal);
+
+
+
 }

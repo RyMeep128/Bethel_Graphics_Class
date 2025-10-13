@@ -34,6 +34,14 @@ export class Cube extends RenderableObject {
     /** Bottom face vertices (6). */
     private bottomFace: vec4[] = [];
 
+    private frontNormal:vec4[] = [];
+    private backNormal:vec4[] = [];
+    private leftNormal:vec4[] = [];
+    private rightNormal:vec4[] = [];
+    private bottomNormal:vec4[] = [];
+    private topNormal:vec4[] = [];
+
+
     /** Per-vertex colors for the front face. */
     private frontFaceColor: vec4[] = [];
     /** Per-vertex colors for the back face. */
@@ -142,8 +150,21 @@ export class Cube extends RenderableObject {
         this.bottomFace.push(new vec4(hx, -hy, -hz, 1.0));
         this.vertexCount += 6;
 
+
+        for (let i = 0; i < this.frontFace.length; i++) {
+            this.frontNormal.push( new vec4(0,0,1,0));
+            this.backNormal.push(new vec4(0,0,-1,0));
+            this.rightNormal .push(new vec4(-1,0,0,0));
+            this.leftNormal .push(new vec4(1,0,0,0));
+            this.topNormal .push(new vec4(0,1,0,0));
+            this.bottomNormal .push( new vec4(0,-1,0,0));
+        }
+
+
+
         this.setColors(Color.PURPLE,Color.BLACK,Color.PURPLE,Color.BLACK,Color.PURPLE,Color.BLACK);
     }
+
 
     /**
      * Sets per-vertex colors for the front face from a single color.
@@ -243,12 +264,12 @@ export class Cube extends RenderableObject {
     public override getObjectData(): vec4[] {
         const tempArr: vec4[] = [];
 
-        tempArr.push(...this.loadingArrayHelper(this.frontFace, this.frontFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.backFace, this.backFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.topFace, this.topFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.bottomFace, this.bottomFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.leftFace, this.leftFaceColor));
-        tempArr.push(...this.loadingArrayHelper(this.rightFace, this.rightFaceColor));
+        tempArr.push(...this.loadingArrayHelper(this.frontFace, this.frontFaceColor,this.frontNormal));
+        tempArr.push(...this.loadingArrayHelper(this.backFace, this.backFaceColor,this.backNormal));
+        tempArr.push(...this.loadingArrayHelper(this.topFace, this.topFaceColor,this.topNormal));
+        tempArr.push(...this.loadingArrayHelper(this.bottomFace, this.bottomFaceColor,this.bottomNormal));
+        tempArr.push(...this.loadingArrayHelper(this.leftFace, this.leftFaceColor,this.leftNormal));
+        tempArr.push(...this.loadingArrayHelper(this.rightFace, this.rightFaceColor,this.rightNormal));
 
         return tempArr;
     }

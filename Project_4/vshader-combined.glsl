@@ -28,14 +28,15 @@ uniform vec4 ambient_light;
 
 uniform float time;
 
+
 void main()
 {
-	gl_Position = vec4(0, 0, 0, 1); //to make the shader compiler happy
-	if(mode == 0){ //unlit
-		color = vAmbientDiffuseColor;
-		gl_Position = projection * model_view * vPosition;
+    gl_Position = vec4(0, 0, 0, 1); //to make the shader compiler happy
+    if(mode == 0){ //unlit
+        color = vAmbientDiffuseColor;
+        gl_Position = projection * model_view * vPosition;
 
-	}else if(mode == 1){ //Gouraud
+    }else if(mode == 1){ //Gouraud
         vec4 veyepos = model_view * vPosition; // get vertex from model to eye space
         vec3 L = normalize(light_position.xyz - veyepos.xyz);
         vec3 V = normalize(-veyepos.xyz);

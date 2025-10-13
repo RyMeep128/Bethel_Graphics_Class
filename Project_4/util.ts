@@ -11,6 +11,8 @@
  * @author Some comments by ChatGPT Model 5
  */
 
+import {vec4} from "./helperfunctions";
+
 /**
  * The time interval (in milliseconds) between fixed-step updates.
  * - 16 ms corresponds to ~60 updates per second (1000 / 60 ≈ 16.67).
@@ -34,7 +36,7 @@ export const Rotation: number = 1;
  * - Higher values = smoother curvature.
  * - 64 bands is a reasonable default for visual quality vs. performance.
  */
-export const Detail: number = 64;
+export const Detail: number = 32;
 
 /**
  * Maximum wheel steering angle in degrees (left or right) for the car.
@@ -87,3 +89,4 @@ export const dollyMax: number = 40;
  * - Controls how quickly the camera moves forward or backward when dollying.
  */
 export const DollyAmt: number = 1;
+
