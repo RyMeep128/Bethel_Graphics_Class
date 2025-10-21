@@ -52,7 +52,7 @@ export const GRAY: vec4 = new vec4(0.5, 0.5, 0.5, 1);
 /** Light blue. @constant @type {vec4} */
 export const LIGHTBLUE: vec4 = new vec4(0.68, 0.85, 0.9, 1);
 /** Dark green. @constant @type {vec4} */
-export const DARKGREEN: vec4 = new vec4(0, 0.39, 0, 1);
+export const DARKGREEN: vec4 = new vec4(0.1, 0.39, 0.1, 1);
 /** Beige. @constant @type {vec4} */
 export const BEIGE: vec4 = new vec4(0.96, 0.96, 0.86, 1);
 /** Crimson. @constant @type {vec4} */

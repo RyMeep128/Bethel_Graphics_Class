@@ -1,10 +1,12 @@
 import { RenderableObject } from "./RenderableObject.js";
-import { mat4, toradians, translate, vec4 } from "./helperfunctions.js";
+import {mat4, todegrees, toradians, translate, vec4} from "./helperfunctions.js";
 import { Cube } from "./Cube.js";
 import { Cylinder } from "./Cylinder.js";
 import * as Color from "./Color.js";
 import * as util from "./util.js";
+import * as Ambient from "./AmbientColors.js"
 import { Sphere } from "./Sphere.js";
+import {Light} from "./Light.js";
 
 /**
  * Renderable car composed of a body ({@link Cube}), four re-positioned wheel draws
@@ -38,9 +40,18 @@ export class Car extends RenderableObject {
     /** Spherical eye placed relative to {@link head} using {@link eyeOffset}. */
     private eye: Sphere;
 
+    private leftHeadlightObject:Cylinder;
+    private rightHeadlightObject:Cylinder;
+    private leftHeadlight:Light;
+    private rightHeadlight:Light;
+
+
+    private wambulanceObject:Cube;
+    private leftlight:Light;
+    private rightlight:Light;
+
     /**
      * Local offset for the eye relative to the head transform.
-     * Negative Z moves the eye forward if -Z is forward in your convention.
      */
     private eyeOffset = { x: 0, y: 0, z: -0.4 };
 
@@ -50,6 +61,9 @@ export class Car extends RenderableObject {
 
     /** Steering angle for front wheels (degrees). Positive = left, Negative = right. */
     private wheelTheta = 0;
+
+    private sirens:boolean = false;
+    private headlights:boolean = false;
 
     /**
      * Constructs a car at (x, y, z) with the given dimensions.
@@ -90,16 +104,36 @@ export class Car extends RenderableObject {
         this.wheel = new Cylinder(gl, program, objectArr, halfHeight, height / 3);
         this.head = new Sphere(gl, program, objectArr, 0.5, 0, 0.5, -depth / 2);
         this.eye = new Sphere(gl, program, objectArr, 0.2);
+        this.leftHeadlightObject = new Cylinder(gl,program,objectArr,0.1,halfHeight/2,width/4,0,-depth / 2);
+        this.rightHeadlightObject = new Cylinder(gl,program,objectArr,0.1,halfHeight/2,-width/4,0,-depth / 2);
+        this.wambulanceObject = new Cube(gl,program,objectArr,0.5,0.5,0.5,0,height,0);
 
         // Ensure wheel and head/eye draw after body in the shared stream
-        this.wheel.addVerticesStartCount(this.body.getVertexCount());
-        this.head.addVerticesStartCount(this.body.getVertexCount() + this.wheel.getVertexCount());
-        this.eye.addVerticesStartCount(
-            this.body.getVertexCount() + this.wheel.getVertexCount() + this.head.getVertexCount()
-        );
+        this.vertexCount = this.body.getVertexCount();
+        this.wheel.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.wheel.getVertexCount();
+        this.head.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.head.getVertexCount();
+        this.eye.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.eye.getVertexCount();
+        this.leftHeadlightObject.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.leftHeadlightObject.getVertexCount();
+        this.rightHeadlightObject.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.rightHeadlightObject.getVertexCount();
+        this.wambulanceObject.addVerticesStartCount(this.vertexCount);
+        this.vertexCount += this.wambulanceObject.getVertexCount();
+
 
         // Wheels roll about +X (use cylinder pitch), so orient their local axes first.
         this.wheel.addRoll(90);
+
+        this.leftHeadlightObject.addRoll(90);
+        this.leftHeadlightObject.addYaw(90);
+        this.rightHeadlightObject.addYaw(90);
+        this.rightHeadlightObject.addRoll(90);
+
+        this.wambulanceObject.addRoll(90);
+        this.wambulanceObject.addYaw(90);
 
         // Default paint job
         this.body.setColors(
@@ -116,13 +150,45 @@ export class Car extends RenderableObject {
         this.head.setColor(Color.BLACK);
         // this.head.setGradientColor(Color.RAINBOW32);
         this.eye.setColor(Color.GHOSTWHITE);
+        this.leftHeadlightObject.setAllColors(Color.GHOSTWHITE);
+        this.rightHeadlightObject.setAllColors(Color.GHOSTWHITE);
+        this.wambulanceObject.setAllColor(Color.GHOSTWHITE);
+        this.headLights()
+        this.wambulance();
+    }
 
-        // Total vertex count (for consumers that need it)
-        this.vertexCount =
-            this.body.getVertexCount() +
-            this.wheel.getVertexCount() +
-            this.head.getVertexCount() +
-            this.eye.getVertexCount();
+    private wambulance(){
+        this.leftlight = new Light(this.gl,this.program,
+            this.wambulanceObject.getX(),this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
+            Color.BLUE,Ambient.AMBIENT_DIM,
+            "left_light_pos", "left_light_color" ,"left_light_ambient","left_light_direction");
+        this.leftlight.setDirection(new vec4(0,0,0,0));
+
+        this.rightlight = new Light(this.gl,this.program,
+            this.wambulanceObject.getX()    ,this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
+            Color.RED,Ambient.AMBIENT_DIM,
+            "right_light_pos", "right_light_color" ,"right_light_ambient","right_light_direction");
+        this.rightlight.setDirection(new vec4(0,0,0,0));
+
+        let cutoffAngle = this.gl.getUniformLocation(this.program,"light_cutoff");
+        this.gl.uniform1f(cutoffAngle,Math.cos(toradians(40)));
+    }
+
+    private headLights(){
+        this.leftHeadlight = new Light(this.gl,this.program,
+            this.leftHeadlightObject.getX(),this.leftHeadlightObject.getY(),this.leftHeadlightObject.getZ(),
+            Color.YELLOW,Ambient.AMBIENT_WARM,
+            "left_headlight_pos", "left_headlight_color" ,"left_headlight_ambient","left_headlight_direction");
+        this.leftHeadlight.setDirection(new vec4(0,0,1,0));
+
+        this.rightHeadlight = new Light(this.gl,this.program,
+            this.rightHeadlightObject.getX(),this.rightHeadlightObject.getY(),this.rightHeadlightObject.getZ(),
+            Color.YELLOW,Ambient.AMBIENT_WARM,
+            "right_headlight_pos", "right_headlight_color" ,"right_headlight_ambient","right_headlight_direction");
+        this.rightHeadlight.setDirection(new vec4(0,0,1,0));
+
+        let cutoffAngle = this.gl.getUniformLocation(this.program,"headlight_cutoff");
+        this.gl.uniform1f(cutoffAngle,Math.cos(toradians(20)));
     }
 
     /**
@@ -155,6 +221,40 @@ export class Car extends RenderableObject {
         // Body
         this.body.update(carMV);
         this.body.draw();
+
+        this.rightHeadlightObject.update(carMV);
+        this.rightHeadlightObject.draw()
+
+        this.leftHeadlightObject.update(carMV);
+        this.leftHeadlightObject.draw();
+
+        this.wambulanceObject.update(carMV);
+        this.wambulanceObject.draw();
+
+
+        if(this.headlights){
+            this.rightHeadlight.sendLightDataWorld(carMV);
+            this.leftHeadlight.sendLightDataWorld(carMV);
+        }else{
+            this.leftHeadlight.disable();
+            this.rightHeadlight.disable();
+        }
+
+
+        if(this.sirens){
+            this.wambulanceObject.addYaw(.25);
+            const phi = this.wambulanceObject.getYaw();
+            this.leftlight.setDirection(new vec4(Math.sin(toradians(phi)), 0, Math.cos(toradians(phi)), 0));
+            this.rightlight.setDirection(new vec4(-Math.sin(toradians(phi)), 0, -Math.cos(toradians(phi)), 0));
+
+            this.leftlight.sendLightDataWorld(carMV);
+            this.rightlight.sendLightDataWorld(carMV);
+        }else{
+            this.leftlight.disable();
+            this.rightlight.disable();
+        }
+
+
 
         // Head
         const headMV: mat4 = this.head.update(carMV);
@@ -205,6 +305,14 @@ export class Car extends RenderableObject {
         this.addZ(-util.Velocity * Math.cos(toradians(phi)));
         this.wheel.addPitch(-util.Rotation * 10);
         this.yaw = this.yaw + this.wheelTheta * 0.05;
+    }
+
+    public toggleHeadlights():boolean{
+        return this.headlights = !this.headlights;
+    }
+
+    public toggleSirens():boolean{
+        return this.sirens = !this.sirens;
     }
 
     /**
@@ -281,6 +389,9 @@ export class Car extends RenderableObject {
         objectPoints.push(...this.wheel.getObjectData());
         objectPoints.push(...this.head.getObjectData());
         objectPoints.push(...this.eye.getObjectData());
+        objectPoints.push(...this.leftHeadlightObject.getObjectData());
+        objectPoints.push(...this.rightHeadlightObject.getObjectData());
+        objectPoints.push(...this.wambulanceObject.getObjectData());
         return objectPoints;
     }
 

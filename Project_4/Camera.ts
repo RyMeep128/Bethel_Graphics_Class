@@ -282,7 +282,7 @@ export class Camera {
      * Returns the current camera model-view (view) matrix.
      * @returns {mat4} The view matrix produced by {@link lookAt}.
      */
-    public getCamera(): mat4 {
+    public getCameraMV(): mat4 {
         return this.cameraMV;
     }
 }

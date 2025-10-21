@@ -41,6 +41,8 @@ export class Cylinder extends RenderableObject {
     private bottomCircleNormal: vec4[] =[];
     private middleBitsNormal: vec4[] = [];
 
+    private height:number;
+
     /** (Reserved) vertices per face; not currently used. */
     private vertexPerFace: number;
 
@@ -77,6 +79,7 @@ export class Cylinder extends RenderableObject {
         this.topCircle = [];
         this.bottomCircle = [];
         this.middleBits = [];
+        this.height = height;
 
         const angle = (2 * Math.PI) / util.Detail;
 
@@ -157,6 +160,10 @@ export class Cylinder extends RenderableObject {
         this.bottomCircleColor = this.helperColor(color, this.bottomCircle);
     }
 
+    public getHeight():number{
+        return this.height;
+    }
+
     /**
      * Sets a solid color for the sidewall (per-vertex expansion).
      * @param color - RGBA vec4 in [0, 1]
@@ -199,6 +206,12 @@ export class Cylinder extends RenderableObject {
         this.setTopColor(topColor);
         this.setBottomColor(bottomColor);
         this.setMiddleBitsColor(middleBitsColor);
+    }
+
+    public setAllColors(color:vec4){
+        this.setTopColor(color);
+        this.setBottomColor(color);
+        this.setMiddleBitsColor(color);
     }
 
     /**

@@ -1,5 +1,6 @@
 import * as util from "./util.js";
 import * as Color from "./Color.js";
+import * as Ambient from "./AmbientColors.js"
 import { Cube } from "./Cube.js";
 import { flatten, initShaders, lookAt, vec4 } from "./helperfunctions.js";
 import { mat4, perspective,initFileShaders } from "./helperfunctions.js";
@@ -8,6 +9,7 @@ import { RenderableObject } from "./RenderableObject.js";
 import { Car } from "./Car.js";
 import { Camera } from "./Camera.js";
 import {Sphere} from "./Sphere.js";
+import {Light} from "./Light.js";
 
 /**
  * @file main.ts
@@ -20,7 +22,7 @@ import {Sphere} from "./Sphere.js";
  * - Drive the update/render loop
  *
  * Conventions:
- * - Interleaved VBO layout: [pos vec4][color vec4], stride 32 bytes (offsets 0/16)
+ * - Interleaved VBO layout: [pos vec4][color vec4][normal vec4], stride 48 bytes (offsets 0/32)
  * - Object-specific transforms handled via each object's `update()` method
  * - Objects with `binding === 0` receive movement input in {@link moveObjects}
  */
@@ -37,6 +39,9 @@ let program: WebGLProgram;
 let objectArr: RenderableObject[];
 /** Player-controlled car instance. */
 let car: Car;
+let sun:Light;
+let day:boolean;
+
 /** Ground plane. */
 let ground: Cube;
 
@@ -75,10 +80,6 @@ let followCar: boolean = false;
 let turnHeadLeft: boolean = false;
 let turnHeadRight: boolean = false;
 
-let uLightPos:WebGLUniformLocation;
-let uLightColor:WebGLUniformLocation;
-let uAmbient:WebGLUniformLocation;
-
 let UNLIT:GLint = 0;
 let GOURAUD:GLint = 1;
 let PHONG:GLint = 2;
@@ -111,19 +112,13 @@ function init(): void {
 
     uproj = gl.getUniformLocation(program, "projection");
 
-     uLightPos   = gl.getUniformLocation(program, "light_position");
-     uLightColor = gl.getUniformLocation(program, "light_color");
-     uAmbient    = gl.getUniformLocation(program, "ambient_light");
-    umode = gl.getUniformLocation(program, "mode");
-
-    gl.uniform4f(uLightPos,   10.0, 10.0, 10.0, 1.0);
-    gl.uniform4f(uLightColor, 1.0,  1.0,  1.0,  1.0);
-    gl.uniform4f(uAmbient,    0.05,  0.05,  0.05,  1.0);
+     umode = gl.getUniformLocation(program, "mode");
 
 
     setupKeyboardMouseBindings();
     initView();
 
+    // Uncomment this Ryan, dont be an idiot
     gl.enable(gl.DEPTH_TEST);
 
     // Fixed-timestep update; render is scheduled via requestAnimationFrame.
@@ -138,6 +133,7 @@ function setupKeyboardMouseBindings(): void {
     window.addEventListener("keydown", keyDown);
     window.addEventListener("keyup", keyUp);
 }
+
 
 /**
  * Key-down handler for movement/input controls.
@@ -212,20 +208,23 @@ function keyDown(event: KeyboardEvent): void {
             turningRightBool = false;
             turningLeftBool = false;
             break;
-        case "g":
-            gl.uniform1i(umode, GOURAUD);
-            break;
-        case "p":
-            gl.uniform1i(umode, PHONG);
-            break;
-        case "c": //cel shading color
-            gl.uniform1i(umode, CEL);
-            break;
-        case "r": //cel shading color
-            gl.uniform1i(umode, RYAN);
-            break;
-        default:
-            gl.uniform1i(umode, UNLIT);
+        case "9":
+            car.toggleHeadlights();
+            break
+        case "8":
+            car.toggleSirens();
+            break
+        case "0":
+            day = !day;
+            if(day){
+                sun.setColor(Color.YELLOW);
+                sun.setAmbient(Ambient.AMBIENT_WARM)
+            }else{
+                sun.setColor(new vec4(0.4,0.4,0.4,1))
+                sun.setAmbient(Ambient.AMBIENT_DIM)
+            }
+            break
+
     }
 }
 
@@ -320,11 +319,17 @@ function initView(): void {
     bufferData();
 }
 
+
 function makeDefaultScene(): void {
     ground = new Cube(gl, program, objectArr, 50, 0.01, 100, 0, -1, 0);
     ground.setAllColor(Color.DARKGREEN);
     objectArr.push(ground);
     makeCar();
+
+    sun = new Light(gl,program,0,1000,0);
+    sun.setColor(new vec4(0.4,0.4,0.4,1))
+    sun.setAmbient(Ambient.AMBIENT_DIM)
+
 }
 
 /**
@@ -332,7 +337,7 @@ function makeDefaultScene(): void {
  * @returns {void}
  */
 function makeCar(): void {
-    car = new Car(gl, program, objectArr, 1, 1, 3);
+    car = new Car(gl, program, objectArr, 2, 1, 3);
     car.bind(0);
     objectArr.push(car);
 }
@@ -382,8 +387,9 @@ function render(): void {
 
     gl.uniformMatrix4fv(uproj, false, p.flatten());
 
+
     // Update + draw in array order
-    for (let i = 0; i < objectArr.length; i++) {
+    for (let i:number = 0; i < objectArr.length; i++) {
         if (objectArr[i].getBinding() === 0) {
             moveObjects();
             checkBounds(ground, car);
@@ -392,6 +398,31 @@ function render(): void {
         zoomAndDolly(i);
         camera(i);
         objectArr[i].draw();
+    }
+
+
+    lights();
+
+
+}
+
+function lights(): void {
+
+    sun.sendLightDataWorld(getCamera().getCameraMV());
+
+    //Note: In theory if I just skip multiplying and brining it into eyespace it should work for headlights?
+
+}
+
+function getCamera():Camera{
+    switch (cameraIndex) {
+        case 1:
+            return cameraOne;
+        case 2:
+        case 3:
+            return cameraTwo;
+        default:
+            throw new Error("Unsupported camera index");
     }
 }
 
@@ -425,8 +456,8 @@ function camera(i: number): void {
             } else {
                 cameraOne.setCameraLook(0, 0, 0);
             }
-            car.updateAndDraw(cameraOne.getCamera());
-            objectArr[i].update(cameraOne.getCamera());
+            car.updateAndDraw(cameraOne.getCameraMV());
+            objectArr[i].update(cameraOne.getCameraMV());
             break;
         }
 
@@ -456,8 +487,8 @@ function camera(i: number): void {
 
             cameraTwo.setCameraPos(eye[0], eye[1], eye[2]);
             cameraTwo.setCameraLook(target[0], target[1], target[2]);
-            car.updateAndDraw(cameraTwo.getCamera());
-            objectArr[i].update(cameraTwo.getCamera());
+            car.updateAndDraw(cameraTwo.getCameraMV());
+            objectArr[i].update(cameraTwo.getCameraMV());
             break;
         }
 
@@ -478,8 +509,8 @@ function camera(i: number): void {
 
             cameraTwo.setCameraPos(targetPos[0], targetPos[1], targetPos[2]);
             cameraTwo.setCameraLook(targetLook[0], targetLook[1], targetLook[2]);
-            car.updateAndDraw(cameraTwo.getCamera());
-            objectArr[i].update(cameraTwo.getCamera());
+            car.updateAndDraw(cameraTwo.getCameraMV());
+            objectArr[i].update(cameraTwo.getCameraMV());
             break;
         }
     }

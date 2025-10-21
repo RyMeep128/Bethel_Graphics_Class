@@ -125,7 +125,6 @@ export abstract class RenderableObject {
         this.aSpecColor = gl.getAttribLocation(program, "vSpecularColor");
         this.aSpecExp   = gl.getAttribLocation(program, "vSpecularExponent");
 
-
         this.startDrawing = 0;
         for (let i = 0; i < objectArr.length; i++) {
             this.startDrawing += objectArr[i].getVertexCount();
