@@ -11,8 +11,6 @@ in float ovSpecularExponent;
 in vec4 oveyepos;
 
 
-
-uniform int mode; //0: unlit, 1:Gouraud, 2: Phong, 3: Cel
 uniform vec4 light_position;
 uniform vec4 light_color;
 uniform vec4 ambient_light;
