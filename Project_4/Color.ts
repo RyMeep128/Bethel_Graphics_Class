@@ -344,3 +344,15 @@ export const FOREST32: vec4[] = [
     new vec4(0.125, 0.375, 0.0, 1.0),
     new vec4(0.0625, 0.4375, 0.0, 1.0),
 ];
+
+
+/**
+ * Creates a translucent version of a given color.
+ * @param {vec4} color - Base color (RGBA).
+ * @param {number} alpha - Transparency level [0,1], default 0.5.
+ * @returns {vec4} A new vec4 with the same RGB and modified alpha.
+ */
+export function translucent(color: vec4, alpha: number = 0.5): vec4 {
+    return new vec4(color[0], color[1], color[2], alpha);
+}
+

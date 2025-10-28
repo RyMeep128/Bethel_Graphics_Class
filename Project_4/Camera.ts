@@ -38,13 +38,13 @@ export class Camera {
     private lookAtZ: number;
 
     /**
-     * Constructs a camera with a default eye at (0,10,20) looking at origin.
+     * Constructs a camera with a default eye at (0,30,50) looking at origin.
      * Up vector is (0,1,0).
      */
     constructor() {
         this.camerax = 0;
-        this.cameray = 10;
-        this.cameraz = 20;
+        this.cameray = 30;
+        this.cameraz = 50;
         this.lookAtX = 0;
         this.lookAtY = 0;
         this.lookAtZ = 0;

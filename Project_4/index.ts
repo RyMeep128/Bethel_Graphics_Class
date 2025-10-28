@@ -264,7 +264,7 @@ function keyUp(event: KeyboardEvent): void {
         case "r":
             if (cameraIndex == 1) {
                 fovy = 45.0;
-                cameraOne.setCameraPos(0, 10, 20);
+                cameraOne.setCameraPos(0, 30, 50);
                 cameraOne.setCameraLook(0, 0, 0);
                 followCar = false;
             }

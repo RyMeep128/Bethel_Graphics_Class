@@ -81,16 +81,4 @@ export class Light{
         this.gl.uniform3f(this.uDirection, 0,0,0,);
     }
 
-    public sendLightDataCamera(){
-        if(this.color === null){
-            throw new Error("Color for a lightSource is set to null")
-        }
-        if(this.ambient === null){
-            throw new Error("Ambient color for a lightSource is set to null")
-        }
-
-        this.gl.uniform4f(this.uLightColor, this.color[0],this.color[1],this.color[2],this.color[3]);
-        this.gl.uniform4f(this.uAmbient,    this.ambient[0],  this.ambient[1],  this.ambient[2],  this.ambient[3]);
-        this.gl.uniform4f(this.uLightPos,   this.position[0], this.position[1],this.position[2],this.position[3]);
-    }
 }
