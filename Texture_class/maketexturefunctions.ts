@@ -6,7 +6,7 @@ let program:WebGLProgram;
 let activeProgram:WebGLProgram;
 let anisotropic_ext:EXT_texture_filter_anisotropic; //TODO next week...
 
-//TODO let checkerTex:WebGLTexture;
+let checkerTex:WebGLTexture;
 
 
 //uniform locations
@@ -20,7 +20,7 @@ let p:mat4; //local projection
 //shader variable indices for material properties
 let vPosition:GLint; //
 let vTexCoord:GLint;
-//TODO let uTextureSampler:WebGLUniformLocation;//this will be a pointer to our sampler2D
+let uTextureSampler:WebGLUniformLocation;//this will be a pointer to our sampler2D
 
 
 //document elements
@@ -55,14 +55,14 @@ window.onload = function init() {
     gl.useProgram(program);
     umv = gl.getUniformLocation(program, "model_view");
     uproj = gl.getUniformLocation(program, "projection");
-    //TODO uTextureSampler = gl.getUniformLocation(program, "textureSampler");//get reference to sampler2D
+    uTextureSampler = gl.getUniformLocation(program, "textureSampler");//get reference to sampler2D
 
     //set up basic perspective viewing
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
     p = perspective(zoom, (canvas.clientWidth / canvas.clientHeight), 1, 20);
     gl.uniformMatrix4fv(uproj, false, p.flatten());
 
-    //TODO makeCheckerTexture();
+    makeCheckerTexture();
     makeSquareAndBuffer();
 
     //initialize rotation angles
@@ -84,9 +84,47 @@ window.onload = function init() {
             case "l":
                 //TODO 2nd Coding activity:
                 //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
                 break;
             case "n":
                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+                break;
+            case "1":
+                //TODO 2nd Coding activity:
+                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+                break;
+            case "2":
+                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+                break;
+            case "r":
+                //TODO 2nd Coding activity:
+                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+                break;
+            case "c":
+                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+                break;
+            case "m":
+                //TODO 2nd Coding activity:
+                //TODO try altering minification and magnification filters here
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.MIRRORED_REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.MIRRORED_REPEAT);
+                break;
+            case "r":
+                //TODO 2nd Coding activity:
+                // //TODO try altering minification and magnification filters here
+                // gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.);
+                // gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
                 break;
         }
 
@@ -106,15 +144,19 @@ window.onload = function init() {
 function makeSquareAndBuffer(){
     let squarePoints:any[] = []; //empty array
 
+    let a = 1;
+    let b = 1;
+    let startA = 0;
+    let startB = 0;
     //create 4 vertices and add them to the array
     squarePoints.push(new vec4(-1, -1, 0, 1));
-//TODO    squarePoints.push(new vec2(0,0)); //texture coordinates, bottom left
+    squarePoints.push(new vec2(startA,startB)); //texture coordinates, bottom left
     squarePoints.push(new vec4(1, -1, 0, 1));
-//TODO    squarePoints.push(new vec2(1,0)); //texture coordinates, bottom right
+    squarePoints.push(new vec2(a,startB)); //texture coordinates, bottom right
     squarePoints.push(new vec4(1, 1, 0, 1));
-//TODO    squarePoints.push(new vec2(1,1)); //texture coordinates, top right
+    squarePoints.push(new vec2(a,b)); //texture coordinates, top right
     squarePoints.push(new vec4(-1, 1, 0, 1));
- //TODO   squarePoints.push(new vec2(0,1)); //texture coordinates, top left
+    squarePoints.push(new vec2(startA,b)); //texture coordinates, top left
 
     //we need some graphics memory for this information
     let bufferId:WebGLBuffer = gl.createBuffer();
@@ -127,9 +169,9 @@ function makeSquareAndBuffer(){
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 24, 0); //stride is 24 bytes total for position, texcoord
     gl.enableVertexAttribArray(vPosition);
 
-//TODO    vTexCoord = gl.getAttribLocation(program, "texCoord");
-//TODO    gl.vertexAttribPointer(vTexCoord, 2, gl.FLOAT, false, 24, 16); //stride is 24 bytes total for position, texcoord
-//TODO    gl.enableVertexAttribArray(vTexCoord);
+    vTexCoord = gl.getAttribLocation(program, "texCoord");
+    gl.vertexAttribPointer(vTexCoord, 2, gl.FLOAT, false, 24, 16); //stride is 24 bytes total for position, texcoord
+    gl.enableVertexAttribArray(vTexCoord);
 
 }
 
@@ -182,14 +224,14 @@ function makeCheckerTexture()
         }
     }
     //now create a texture object [in graphics memory hopefully]
-//TODO    checkerTex = gl.createTexture();
-//TODO    gl.bindTexture(gl.TEXTURE_2D, checkerTex);
+    checkerTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, checkerTex);
     //this is a 2D texture, full resolution (level 0), RGBA now, texWidth by texHeight texels big, has no border
     // and should also be RGBA in video memory, currently each
     //texel is stored as unsigned bytes, and you can find all the texels in mmtexture
-//TODO    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texWidth, texHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, mmtexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texWidth, texHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, mmtexture);
 //TODO    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);//try different min and mag filters
-//TODO    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
 
 }
@@ -210,11 +252,11 @@ function render(){
     //make sure the appropriate texture is sitting on texture unit 0
     //we could do this once since we only have one texture, but eventually you'll have multiple textures
     //so you'll be swapping them in and out for each object
-//TODO    gl.activeTexture(gl.TEXTURE0); //we're using texture unit 0
-//TODO    gl.bindTexture(gl.TEXTURE_2D, checkerTex); //we want checkerTex on that texture unit
+    gl.activeTexture(gl.TEXTURE0); //we're using texture unit 0
+    gl.bindTexture(gl.TEXTURE_2D, checkerTex); //we want checkerTex on that texture unit
     //when the shader runs, the sampler2D will want to know what texture unit the texture is on
     //It's on texture unit 0, so send over the value 0
-//TODO    gl.uniform1i(uTextureSampler, 0);
+    gl.uniform1i(uTextureSampler, 0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 

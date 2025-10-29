@@ -2,7 +2,7 @@ import * as util from "./util.js";
 import * as Color from "./Color.js";
 import * as Ambient from "./AmbientColors.js"
 import { Cube } from "./Cube.js";
-import { flatten, initShaders, lookAt, vec4 } from "./helperfunctions.js";
+import {flatten, initShaders, lookAt, vec3, vec4} from "./helperfunctions.js";
 import { mat4, perspective,initFileShaders } from "./helperfunctions.js";
 import { Cylinder } from "./Cylinder.js";
 import { RenderableObject } from "./RenderableObject.js";
@@ -87,6 +87,13 @@ let CEL:GLint = 3;
 let RYAN:GLint = 4;
 let umode:WebGLUniformLocation; //lighting mode
 
+let uLightPos:WebGLUniformLocation;
+let uLightColor:WebGLUniformLocation;
+let uAmbient:WebGLUniformLocation;
+let uDirection:WebGLUniformLocation;
+let uEnabled:WebGLUniformLocation;
+let uLightCutoff:WebGLUniformLocation;
+
 
 
 window.onload = init;
@@ -113,6 +120,13 @@ function init(): void {
     uproj = gl.getUniformLocation(program, "projection");
 
      umode = gl.getUniformLocation(program, "mode");
+
+    uLightPos   = gl.getUniformLocation(program, "uLightPos");
+    uLightColor = gl.getUniformLocation(program, "uLightColor");
+    uAmbient    = gl.getUniformLocation(program, "uLightAmbient");
+    uDirection = gl.getUniformLocation(program,"uLightDirection");
+    uEnabled = gl.getUniformLocation(program,"uLightEnabled");
+    uLightCutoff = gl.getUniformLocation(program,"uLightCutoff");
 
 
     setupKeyboardMouseBindings();
@@ -219,9 +233,13 @@ function keyDown(event: KeyboardEvent): void {
             if(day){
                 sun.setColor(Color.YELLOW);
                 sun.setAmbient(Ambient.AMBIENT_WARM)
+                sun.enable()
             }else{
                 sun.setColor(new vec4(0.4,0.4,0.4,1))
                 sun.setAmbient(Ambient.AMBIENT_DIM)
+                sun.disable()
+                sun.enableAmbient();
+
             }
             break
 
@@ -326,9 +344,10 @@ function makeDefaultScene(): void {
     objectArr.push(ground);
     makeCar();
 
-    sun = new Light(gl,program,0,1000,0);
-    sun.setColor(new vec4(0.4,0.4,0.4,1))
-    sun.setAmbient(Ambient.AMBIENT_DIM)
+    sun = new Light(gl,program,0,1000,0,Color.YELLOW,Ambient.AMBIENT_WARM,-1);
+    day = true;
+    sun.setDirection(new vec4(0,-1,0,0));
+
 
 }
 
@@ -407,10 +426,39 @@ function render(): void {
 }
 
 function lights(): void {
+    let lights:Light[] = []
+    lights.push(sun);
+    lights.push(...car.getLightData());
+    let ambients:vec4[] = [];
+    let colors:vec4[] = [];
+    let directions:vec4[] = [];
+    let positions:vec4[] = [];
+    let enabled:vec4[] = [];
+    let cutOffAngles:number[] = [];
+    let cameraMV = getCamera().getCameraMV();
 
-    sun.sendLightDataWorld(getCamera().getCameraMV());
 
-    //Note: In theory if I just skip multiplying and brining it into eyespace it should work for headlights?
+    for (let i = 0; i < 5; i++) {
+        ambients.push(lights[i].getAmbient())
+        colors.push(lights[i].getColor())
+        if (lights[i] != sun) {
+            directions.push(lights[i].getDirection(car.getCarMV(cameraMV)));
+            positions.push(lights[i].getPosition(car.getCarMV(cameraMV)));
+        } else{
+            directions.push(lights[i].getDirection(cameraMV));
+            positions.push(lights[i].getPosition(cameraMV));
+        }
+        enabled.push(lights[i].getEnabled());
+        cutOffAngles.push(lights[i].getCutOffAngle());
+    }
+
+    gl.uniform4fv(uLightColor, flatten(colors));
+    gl.uniform4fv(uAmbient,   flatten(ambients) );
+    gl.uniform4fv(uLightPos,   flatten(positions) );
+    gl.uniform4fv(uDirection, flatten(directions));
+    gl.uniform4fv(uEnabled, flatten(enabled));
+    gl.uniform1fv(uLightCutoff, cutOffAngles);
+    console.log(lights);
 
 }
 

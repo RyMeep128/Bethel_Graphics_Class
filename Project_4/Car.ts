@@ -158,37 +158,39 @@ export class Car extends RenderableObject {
     }
 
     private wambulance(){
+        const cutoffAngle = Math.cos(toradians(40));
         this.leftlight = new Light(this.gl,this.program,
             this.wambulanceObject.getX(),this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
-            Color.BLUE,Ambient.AMBIENT_DIM,
-            "left_light_pos", "left_light_color" ,"left_light_ambient","left_light_direction");
+            Color.BLUE,Ambient.AMBIENT_DIM, cutoffAngle);
         this.leftlight.setDirection(new vec4(0,0,0,0));
 
         this.rightlight = new Light(this.gl,this.program,
             this.wambulanceObject.getX()    ,this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
-            Color.RED,Ambient.AMBIENT_DIM,
-            "right_light_pos", "right_light_color" ,"right_light_ambient","right_light_direction");
+            Color.RED,Ambient.AMBIENT_DIM, cutoffAngle);
         this.rightlight.setDirection(new vec4(0,0,0,0));
 
-        let cutoffAngle = this.gl.getUniformLocation(this.program,"light_cutoff");
-        this.gl.uniform1f(cutoffAngle,Math.cos(toradians(40)));
     }
 
     private headLights(){
+        const cutoffAngle = Math.cos(toradians(20));
         this.leftHeadlight = new Light(this.gl,this.program,
             this.leftHeadlightObject.getX(),this.leftHeadlightObject.getY(),this.leftHeadlightObject.getZ(),
-            Color.YELLOW,Ambient.AMBIENT_WARM,
-            "left_headlight_pos", "left_headlight_color" ,"left_headlight_ambient","left_headlight_direction");
+            Color.YELLOW,Ambient.AMBIENT_WARM, cutoffAngle);
         this.leftHeadlight.setDirection(new vec4(0,0,1,0));
 
         this.rightHeadlight = new Light(this.gl,this.program,
             this.rightHeadlightObject.getX(),this.rightHeadlightObject.getY(),this.rightHeadlightObject.getZ(),
-            Color.YELLOW,Ambient.AMBIENT_WARM,
-            "right_headlight_pos", "right_headlight_color" ,"right_headlight_ambient","right_headlight_direction");
+            Color.YELLOW,Ambient.AMBIENT_WARM, cutoffAngle);
         this.rightHeadlight.setDirection(new vec4(0,0,1,0));
+    }
 
-        let cutoffAngle = this.gl.getUniformLocation(this.program,"headlight_cutoff");
-        this.gl.uniform1f(cutoffAngle,Math.cos(toradians(20)));
+    public getLightData():Light[]{
+        let lights:Light[] = [];
+        lights.push(this.leftHeadlight);
+        lights.push(this.rightHeadlight);
+        lights.push(this.rightlight);
+        lights.push(this.leftlight);
+        return lights;
     }
 
     /**
@@ -233,8 +235,8 @@ export class Car extends RenderableObject {
 
 
         if(this.headlights){
-            this.rightHeadlight.sendLightDataWorld(carMV);
-            this.leftHeadlight.sendLightDataWorld(carMV);
+            this.leftHeadlight.enable();
+            this.rightHeadlight.enable();
         }else{
             this.leftHeadlight.disable();
             this.rightHeadlight.disable();
@@ -246,9 +248,10 @@ export class Car extends RenderableObject {
             const phi = this.wambulanceObject.getYaw();
             this.leftlight.setDirection(new vec4(Math.sin(toradians(phi)), 0, Math.cos(toradians(phi)), 0));
             this.rightlight.setDirection(new vec4(-Math.sin(toradians(phi)), 0, -Math.cos(toradians(phi)), 0));
-
-            this.leftlight.sendLightDataWorld(carMV);
-            this.rightlight.sendLightDataWorld(carMV);
+            this.leftlight.enable();
+            this.rightlight.enable();
+            // this.leftlight.sendLightDataWorld(carMV);
+            // this.rightlight.sendLightDataWorld(carMV);
         }else{
             this.leftlight.disable();
             this.rightlight.disable();
@@ -337,6 +340,10 @@ export class Car extends RenderableObject {
         if (this.wheelTheta <= -util.maxWheelTurn) {
             this.wheelTheta = -util.maxWheelTurn;
         }
+    }
+
+    public getCarMV(camera){
+        return this.update(camera);
     }
 
     /**

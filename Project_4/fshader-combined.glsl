@@ -30,6 +30,8 @@ uniform float headlight_cutoff;
 
 
 
+
+
 //Wambulance
 uniform vec4 left_light_pos;
 uniform vec4 left_light_color;
@@ -41,6 +43,16 @@ uniform vec4 right_light_color;
 uniform vec4 right_light_ambient;
 uniform vec3 right_light_direction;
 
+
+uniform vec4 uLightPos[5];
+uniform vec4 uLightColor[5];
+uniform vec4 uLightAmbient[5];
+uniform vec4 uLightDirection[5];
+uniform vec4 uLightEnabled[5];
+uniform float uLightCutoff[5];
+
+
+
 uniform float light_cutoff;
 
 
@@ -49,100 +61,38 @@ uniform float time;
 
 
 out vec4  fColor;
-void main()
-{
+void main(){
+    fColor = vec4(0,0,0,1);
 
-        vec3 L = normalize(light_position.xyz - oveyepos.xyz);
-        vec3 V = normalize(-oveyepos.xyz);
+    for(int i = 0; i < 5; i++){
+        vec3 L = normalize(uLightPos[i].xyz - oveyepos.xyz);
+        vec3 LD = normalize(uLightDirection[i].xyz);
         vec3 N = normalize((model_view * ovNormal).xyz);
-        vec3 R = reflect(-L,N); // Vector from the light source refleccted across the normal vector
+        vec3 V = normalize(-oveyepos.xyz);
 
-        vec4 amb = ovAmbientDiffuseColor * ambient_light;
-        vec4 diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * light_color;
-        vec4 spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * light_color;
+        if( (dot(LD,L) >= uLightCutoff[i]) ){
+            vec3 R = reflect(-L,N);
+
+            vec4 amb = ovAmbientDiffuseColor * uLightAmbient[i];
+            vec4 diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * uLightColor[i];
+            vec4 spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * uLightColor[i];
 
 
-        if(dot(L,N) < 0.0){
-            spec = vec4(0,0,0,1); //No glare beyond the horizon
+            if(dot(L,N) < 0.0){
+                spec = vec4(0,0,0,1);
+            }
+
+            if(uLightEnabled[i].x == 1.0){
+                fColor += amb;
+            }
+            if(uLightEnabled[i].y == 1.0){
+                fColor += diff;
+            }
+            if(uLightEnabled[i].z == 1.0){
+                fColor += spec;
+            }
         }
-        fColor = amb + diff + spec;
-
-
-
-    L = normalize(left_headlight_pos.xyz - oveyepos.xyz);
-    vec3 LD = normalize(left_headlight_direction);
-
-    if( (dot(LD,L) >= headlight_cutoff ) ){
-        R = reflect(-L,N);
-
-         amb = ovAmbientDiffuseColor * left_headlight_ambient;
-         diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * left_headlight_color;
-         spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * left_headlight_color;
-
-
-        if(dot(L,N) < 0.0){
-            spec = vec4(0,0,0,1);
-        }
-        fColor += amb + diff + spec;
     }
-
-
-    L = normalize(right_headlight_pos.xyz - oveyepos.xyz);
-    LD = normalize(right_headlight_direction);
-
-    if( (dot(LD,L) >= headlight_cutoff ) ){
-        R = reflect(-L,N);
-
-        amb = ovAmbientDiffuseColor * right_headlight_ambient;
-        diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * right_headlight_color;
-        spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * right_headlight_color;
-
-
-        if(dot(L,N) < 0.0){
-            spec = vec4(0,0,0,1);
-        }
-        fColor += amb + diff + spec;
-    }
-
-
-
-
-
-
-    L = normalize(right_light_pos.xyz - oveyepos.xyz);
-    LD = normalize(right_light_direction);
-
-    if( (dot(LD,L) >= light_cutoff ) ){
-        R = reflect(-L,N);
-
-        amb = ovAmbientDiffuseColor * right_light_ambient;
-        diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * right_light_color;
-        spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * right_light_color;
-
-
-        if(dot(L,N) < 0.0){
-            spec = vec4(0,0,0,1);
-        }
-        fColor += amb + diff + spec;
-    }
-
-    L = normalize(left_light_pos.xyz - oveyepos.xyz);
-    LD = normalize(left_light_direction);
-
-    if( (dot(LD,L) >= light_cutoff ) ){
-        R = reflect(-L,N);
-
-        amb = ovAmbientDiffuseColor * left_light_ambient;
-        diff = max(dot(L,N),0.0) * ovAmbientDiffuseColor * left_light_color;
-        spec = pow(max(dot(R,V),0.0),ovSpecularExponent) * ovSpecularColor * left_light_color;
-
-
-        if(dot(L,N) < 0.0){
-            spec = vec4(0,0,0,1);
-        }
-        fColor += amb + diff + spec;
-    }
-
 
 
 }
