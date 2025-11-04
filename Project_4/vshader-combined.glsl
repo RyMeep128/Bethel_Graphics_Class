@@ -5,10 +5,8 @@ in vec4 vPosition;
 in vec4 vAmbientDiffuseColor;
 in vec4 vNormal;
 in vec4 vSpecularColor;
-in float vSpecularExponent; // Note this is a float not a vec4!!!!!!!!!
+in float vSpecularExponent; // Note this is a float not a vec4 RYAN!!!!!!!!!!!!
 
-
-out vec4 color;
 
 out vec4 ovAmbientDiffuseColor;
 out vec4 ovNormal;
@@ -19,13 +17,6 @@ out vec4 oveyepos;
 
 uniform mat4 model_view;
 uniform mat4 projection;
-
-uniform vec4 light_position;
-uniform vec4 light_color;
-uniform vec4 ambient_light;
-
-
-uniform float time;
 
 
 void main()
@@ -39,5 +30,4 @@ void main()
         oveyepos = model_view * vPosition;
 
         gl_Position = projection * model_view * vPosition;
-
 }

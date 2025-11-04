@@ -80,13 +80,6 @@ let followCar: boolean = false;
 let turnHeadLeft: boolean = false;
 let turnHeadRight: boolean = false;
 
-let UNLIT:GLint = 0;
-let GOURAUD:GLint = 1;
-let PHONG:GLint = 2;
-let CEL:GLint = 3;
-let RYAN:GLint = 4;
-let umode:WebGLUniformLocation; //lighting mode
-
 let uLightPos:WebGLUniformLocation;
 let uLightColor:WebGLUniformLocation;
 let uAmbient:WebGLUniformLocation;
@@ -119,7 +112,6 @@ function init(): void {
 
     uproj = gl.getUniformLocation(program, "projection");
 
-     umode = gl.getUniformLocation(program, "mode");
 
     uLightPos   = gl.getUniformLocation(program, "uLightPos");
     uLightColor = gl.getUniformLocation(program, "uLightColor");
@@ -231,7 +223,7 @@ function keyDown(event: KeyboardEvent): void {
         case "0":
             day = !day;
             if(day){
-                sun.setColor(Color.YELLOW);
+                sun.setColor(Color.GHOSTWHITE);
                 sun.setAmbient(Ambient.AMBIENT_WARM)
                 sun.enable()
             }else{
@@ -344,7 +336,7 @@ function makeDefaultScene(): void {
     objectArr.push(ground);
     makeCar();
 
-    sun = new Light(gl,program,0,1000,0,Color.YELLOW,Ambient.AMBIENT_WARM,-1);
+    sun = new Light(0,1000,0,Color.GHOSTWHITE,Ambient.AMBIENT_WARM,-1);
     day = true;
     sun.setDirection(new vec4(0,-1,0,0));
 

@@ -40,18 +40,25 @@ export class Car extends RenderableObject {
     /** Spherical eye placed relative to {@link head} using {@link eyeOffset}. */
     private eye: Sphere;
 
+    /** Left headlight mesh (cylinder). */
     private leftHeadlightObject:Cylinder;
+    /** Right headlight mesh (cylinder). */
     private rightHeadlightObject:Cylinder;
+    /** Left headlight light source. */
     private leftHeadlight:Light;
+    /** Right headlight light source. */
     private rightHeadlight:Light;
 
-
+    /** Rotating lightbar cube (“wambulance”). */
     private wambulanceObject:Cube;
+    /** Left rotating siren light. */
     private leftlight:Light;
+    /** Right rotating siren light. */
     private rightlight:Light;
 
     /**
      * Local offset for the eye relative to the head transform.
+     * @type {{x:number,y:number,z:number}}
      */
     private eyeOffset = { x: 0, y: 0, z: -0.4 };
 
@@ -62,7 +69,9 @@ export class Car extends RenderableObject {
     /** Steering angle for front wheels (degrees). Positive = left, Negative = right. */
     private wheelTheta = 0;
 
+    /** Siren toggle state. */
     private sirens:boolean = false;
+    /** Headlight toggle state. */
     private headlights:boolean = false;
 
     /**
@@ -157,33 +166,51 @@ export class Car extends RenderableObject {
         this.wambulance();
     }
 
+    /**
+     * Initializes the rotating “wambulance” siren lights atop the car.
+     * Cutoff angle is computed as cos(40°) for a wider cone.
+     * @private
+     * @returns {void}
+     */
     private wambulance(){
         const cutoffAngle = Math.cos(toradians(40));
-        this.leftlight = new Light(this.gl,this.program,
+        this.leftlight = new Light(
             this.wambulanceObject.getX(),this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
             Color.BLUE,Ambient.AMBIENT_DIM, cutoffAngle);
         this.leftlight.setDirection(new vec4(0,0,0,0));
 
-        this.rightlight = new Light(this.gl,this.program,
+        this.rightlight = new Light(
             this.wambulanceObject.getX()    ,this.wambulanceObject.getY(),this.wambulanceObject.getZ(),
             Color.RED,Ambient.AMBIENT_DIM, cutoffAngle);
         this.rightlight.setDirection(new vec4(0,0,0,0));
 
     }
 
+    /**
+     * Initializes headlight light sources mounted in the front cylinders.
+     * Cutoff angle is computed as cos(20°) for a tighter beam.
+     * @private
+     * @returns {void}
+     */
     private headLights(){
         const cutoffAngle = Math.cos(toradians(20));
-        this.leftHeadlight = new Light(this.gl,this.program,
+        this.leftHeadlight = new Light(
             this.leftHeadlightObject.getX(),this.leftHeadlightObject.getY(),this.leftHeadlightObject.getZ(),
             Color.YELLOW,Ambient.AMBIENT_WARM, cutoffAngle);
         this.leftHeadlight.setDirection(new vec4(0,0,1,0));
 
-        this.rightHeadlight = new Light(this.gl,this.program,
+        this.rightHeadlight = new Light(
             this.rightHeadlightObject.getX(),this.rightHeadlightObject.getY(),this.rightHeadlightObject.getZ(),
             Color.YELLOW,Ambient.AMBIENT_WARM, cutoffAngle);
         this.rightHeadlight.setDirection(new vec4(0,0,1,0));
     }
 
+    /**
+     * Returns all light sources associated with the car
+     * (left/right headlights and left/right sirens).
+     * Order matches creation order.
+     * @returns {Light[]} Lights array.
+     */
     public getLightData():Light[]{
         let lights:Light[] = [];
         lights.push(this.leftHeadlight);
@@ -310,10 +337,18 @@ export class Car extends RenderableObject {
         this.yaw = this.yaw + this.wheelTheta * 0.05;
     }
 
+    /**
+     * Toggles the headlights on/off.
+     * @returns {boolean} New headlight state.
+     */
     public toggleHeadlights():boolean{
         return this.headlights = !this.headlights;
     }
 
+    /**
+     * Toggles the sirens on/off.
+     * @returns {boolean} New siren state.
+     */
     public toggleSirens():boolean{
         return this.sirens = !this.sirens;
     }
@@ -342,6 +377,11 @@ export class Car extends RenderableObject {
         }
     }
 
+    /**
+     * Returns the car model-view for the given camera.
+     * @param {mat4} camera - View matrix.
+     * @returns {mat4} Car MV matrix.
+     */
     public getCarMV(camera){
         return this.update(camera);
     }

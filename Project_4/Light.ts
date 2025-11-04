@@ -1,132 +1,196 @@
-import {mat4, vec4} from "./helperfunctions.js";
+import { mat4, vec4 } from "./helperfunctions.js";
 
-export class Light{
-
-    private gl: WebGLRenderingContext;
-    private program:WebGLProgram;
-    private uLightPos:WebGLUniformLocation;
-    private uLightColor:WebGLUniformLocation;
-    private uAmbient:WebGLUniformLocation;
-    private uDirection:WebGLUniformLocation;
-
-    private color:vec4;
-    private ambient:vec4;
-    private position:vec4;
-    private direction: vec4;
-    private cutOffAngle:number;
+/**
+ * Represents a light source used for shading in a 3D scene.
+ *
+ * This class encapsulates all relevant light parameters, including
+ * position, color, ambient intensity, direction, cutoff angle,
+ * and component enablement flags. It can be transformed into eye space
+ * using a provided view matrix.
+ */
+export class Light {
     /**
-     * 1 is on, 0 is off
-     * [0] = amvient
-     * [1] = diffuse
-     * [2] = spec
-     * [3] = unused for now
      * @private
+     * @type {vec4}
+     * The color of the light (RGBA).
      */
-    private enabled:vec4;
+    private color;
 
-    private static count = 0;
-    private id;
+    /**
+     * @private
+     * @type {vec4}
+     * The ambient color of the light (RGBA).
+     */
+    private ambient;
 
-    constructor(gl: WebGLRenderingContext,program:WebGLProgram ,x:number, y:number,z:number, color:vec4 = null, ambient:vec4 = null,cutOffAngle = 180, direction:vec4 = new vec4(0,0,0,0),) {
-        this.gl = gl;
-        this.program = program;
-        this.position = new vec4(x,y,z,1);
+    /**
+     * @private
+     * @type {vec4}
+     * The position of the light in world space (XYZW, w=1 for positional lights).
+     */
+    private position;
+
+    /**
+     * @private
+     * @type {vec4}
+     * The direction the light is facing (used for spotlights).
+     */
+    private direction;
+
+    /**
+     * @private
+     * @type {number}
+     * The cutoff angle of the spotlight cone, in degrees.
+     */
+    private cutOffAngle;
+
+    /**
+     * 1 represents enabled, 0 represents disabled.
+     * The channels correspond to:
+     * - [0]: Ambient
+     * - [1]: Diffuse
+     * - [2]: Specular
+     * - [3]: Unused (reserved)
+     * @private
+     * @type {vec4}
+     */
+    private enabled;
+
+    /**
+     * Creates a new Light instance.
+     *
+     * @param {number} x - The X coordinate of the light position.
+     * @param {number} y - The Y coordinate of the light position.
+     * @param {number} z - The Z coordinate of the light position.
+     * @param {?vec4} [color=null] - The light’s color (RGBA). Optional.
+     * @param {?vec4} [ambient=null] - The ambient component color. Optional.
+     * @param {number} [cutOffAngle=180] - The cutoff angle of the spotlight cone (default: 180° for omnidirectional).
+     * @param {vec4} [direction=new vec4(0,0,0,0)] - The light’s direction vector.
+     */
+    constructor(x, y, z, color = null, ambient = null, cutOffAngle = 180, direction = new vec4(0,0,0,0)) {
+        this.position = new vec4(x, y, z, 1);
         this.color = color;
         this.ambient = ambient;
         this.direction = direction;
-        this.enabled = new vec4(1,1,1,1);
+        this.enabled = new vec4(1, 1, 1, 1);
         this.cutOffAngle = cutOffAngle;
-        Light.count++;
-        this.id = Light.count;
-
-
     }
 
-    public setColor(color:vec4){
+    /**
+     * Sets the light’s color.
+     * @param {vec4} color - The new RGBA color for the light.
+     */
+    public setColor(color) {
         this.color = color;
     }
 
-    public setAmbient(ambient:vec4){
+    /**
+     * Sets the light’s ambient color.
+     * @param {vec4} ambient - The new ambient RGBA color.
+     */
+    public setAmbient(ambient) {
         this.ambient = ambient;
     }
 
-    public setDirection(direction: vec4){
+    /**
+     * Sets the light’s direction vector.
+     * @param {vec4} direction - The new direction vector.
+     */
+    public setDirection(direction) {
         this.direction = direction;
     }
 
-    //getCamera().getCameraMV();
-    // his.gl.uniform4f(this.uLightColor, 0.4,  0.4,  0.4,  1.0);
-    // this.gl.uniform4f(this.uAmbient,    0.1,  0.1,  0.1,  1.0);
-    // public sendLightDataWorld(view: mat4){
-    //     if(this.color === null){
-    //         throw new Error("Color for a lightSource is set to null")
-    //     }
-    //     if(this.ambient === null){
-    //         throw new Error("Ambient color for a lightSource is set to null")
-    //     }
-    //
-    //     // console.log(this.id+" | "+this.direction)
-    //     let uploadableDirection:vec4 = view.mult(this.direction);
-    //
-    //     // light eye space
-    //     let lightEye = view.mult(this.position);
-    //     // console.log(this.id+"| "+ this.uLightColor+" "+this.uAmbient+" "+this.uLightPos+" "+this.uDirection)
-    //
-    //     this.gl.uniform4f(this.uLightColor, this.color[0],this.color[1],this.color[2],this.color[3]);
-    //     this.gl.uniform4f(this.uAmbient,    this.ambient[0],  this.ambient[1],  this.ambient[2],  this.ambient[3]);
-    //     this.gl.uniform4f(this.uLightPos,   lightEye[0], lightEye[1], lightEye[2], lightEye[3]);
-    //     this.gl.uniform3f(this.uDirection, uploadableDirection[0],uploadableDirection[1],uploadableDirection[2]);
-    // }
-
-    public getColor():vec4{
+    /**
+     * Gets the light’s color.
+     * @returns {vec4} The light’s color.
+     */
+    public getColor() {
         return this.color;
     }
 
-    public getAmbient(){
+    /**
+     * Gets the ambient color of the light.
+     * @returns {vec4} The light’s ambient color.
+     */
+    public getAmbient() {
         return this.ambient;
     }
 
-    public getDirection(view:mat4){
+    /**
+     * Gets the light’s direction transformed into eye space.
+     * @param {mat4} view - The model-view matrix to transform the direction.
+     * @returns {vec4} The transformed direction vector.
+     */
+    public getDirection(view) {
         return view.mult(this.direction);
     }
 
-    public getPosition(view:mat4){
+    /**
+     * Gets the light’s position transformed into eye space.
+     * @param {mat4} view - The model-view matrix to transform the position.
+     * @returns {vec4} The transformed position vector.
+     */
+    public getPosition(view) {
         return view.mult(this.position);
     }
 
-    public getCutOffAngle(){
+    /**
+     * Gets the cutoff angle of the light (in degrees).
+     * @returns {number} The cutoff angle.
+     */
+    public getCutOffAngle() {
         return this.cutOffAngle;
     }
 
-    public disable(){
-        this.enabled = new vec4(0,0,0,0);
+    /**
+     * Disables all components (ambient, diffuse, and specular).
+     */
+    public disable() {
+        this.enabled = new vec4(0, 0, 0, 0);
     }
 
-
-    public disableAmbient(){
-        this.enabled = new vec4(this.enabled[0],0,this.enabled[2],this.enabled[3])
+    /**
+     * Disables only the ambient component of the light.
+     */
+    public disableAmbient() {
+        this.enabled = new vec4(0, this.enabled[1], this.enabled[2], this.enabled[3]);
     }
 
-    public enableAmbient(){
-        this.enabled = new vec4(this.enabled[0],1,this.enabled[2],this.enabled[3])
+    /**
+     * Enables the ambient component of the light.
+     */
+    public enableAmbient() {
+        this.enabled = new vec4(1, this.enabled[1], this.enabled[2], this.enabled[3]);
     }
 
-    public disableDiffuse(){
-        this.enabled = new vec4(this.enabled[0],0,this.enabled[2],this.enabled[3])
+    /**
+     * Disables only the diffuse component of the light.
+     */
+    public disableDiffuse() {
+        this.enabled = new vec4(this.enabled[0], 0, this.enabled[2], this.enabled[3]);
     }
 
-    public disableSpec(){
-        this.enabled = new vec4(this.enabled[0],this.enabled[1],0,this.enabled[3])
+    /**
+     * Disables only the specular component of the light.
+     */
+    public disableSpec() {
+        this.enabled = new vec4(this.enabled[0], this.enabled[1], 0, this.enabled[3]);
     }
 
-
-
-    public enable(){
-        this.enabled = new vec4(1,1,1,1)
+    /**
+     * Enables all components (ambient, diffuse, and specular).
+     */
+    public enable() {
+        this.enabled = new vec4(1, 1, 1, 1);
     }
 
-    public getEnabled(){
+    /**
+     * Gets the vector representing which components (ambient, diffuse, specular) are enabled.
+     *
+     * @returns {vec4} A vector of enable flags:
+     * `[x, y, z, w] = [ambient, diffuse, specular, unused]`
+     */
+    public getEnabled() {
         return this.enabled;
     }
-
 }
