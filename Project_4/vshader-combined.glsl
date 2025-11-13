@@ -29,5 +29,5 @@ void main()
         ovSpecularExponent = vSpecularExponent;
         oveyepos = model_view * vPosition;
 
-        gl_Position = projection * model_view * vPosition;
+    gl_Position = projection * model_view * vPosition;
 }
