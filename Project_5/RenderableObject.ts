@@ -236,7 +236,7 @@ export abstract class RenderableObject {
     public draw(): void {
         // per-object material fields with setters
         const specularColor = new vec4(1, 1, 1, 1); // default
-        const specularExp = 32.0;
+        const specularExp = 1000;
 
 
         if (this.aSpecColor !== -1) {

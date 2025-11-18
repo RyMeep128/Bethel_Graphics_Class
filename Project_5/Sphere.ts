@@ -3,7 +3,7 @@ import {vec4} from "./helperfunctions.js";
 import * as Util from "./util.js";
 
 /**
- * Triangulated UV sphere built from latitude bands and longitude segments.
+ * Triangulated UV sphere built from latitude latitude and longitude longitude.
  *
  * - Geometry is generated in the constructor using two triangles per quad patch.
  * - Color can be assigned uniformly via {@link setColor} or as a repeating gradient via {@link setGradientColor}.
@@ -20,16 +20,16 @@ export class Sphere extends RenderableObject {
     private radius:number;
 
     /**
-     * Number of latitude divisions ("bands").
+     * Number of latitude divisions ("latitude").
      * @remarks Initialized from {@link Util.Detail}.
      */
-    private bands:number;
+    private latitude:number;
 
     /**
-     * Number of longitude divisions ("segments").
-     * @remarks Computed as `bands / 2`.
+     * Number of longitude divisions ("longitude").
+     * @remarks Computed as `latitude / 2`.
      */
-    private segments:number;
+    private longitude:number;
 
     /** Flat list of triangle vertex positions (vec4). */
     private vertices:vec4[] = [];
@@ -70,18 +70,17 @@ export class Sphere extends RenderableObject {
     ) {
         super(gl,program, objectArr, 1, x, y, z,yaw,pitch,roll);
         this.radius = radius;
-        this.bands = Util.Detail;
-        this.segments = this.bands/2;
+        this.latitude = Util.Detail;
+        this.longitude = this.latitude/2;
 
         // Build quads as two triangles (tl-bl-tr) and (tr-bl-br) for each lat/long cell.
-        for (let i = 0; i < this.bands; i++) {
-            for (let j = 0; j < this.segments; j++) {
-                const jRight = (j + 1) % this.segments;
-
+        for (let i = 0; i < this.latitude; i++) {
+            for (let j = 0; j < this.longitude; j++) {
+                // NOTE: no modulo, we allow j+1 up to this.segments
                 const tl = this.stupidTrigMath(i,     j);
-                const tr = this.stupidTrigMath(i,     jRight);
+                const tr = this.stupidTrigMath(i,     j + 1);
                 const bl = this.stupidTrigMath(i + 1, j);
-                const br = this.stupidTrigMath(i + 1, jRight);
+                const br = this.stupidTrigMath(i + 1, j + 1);
 
                 // Triangle 1: tl, bl, tr
                 this.vertices.push(tl.pos); this.vertexCount++;
@@ -117,37 +116,32 @@ export class Sphere extends RenderableObject {
             }
         }
 
+
     }
 
     /**
      * Computes position, normal, tangent, and texcoord for a given grid point (i, j).
      *
-     * @param {number} i - Latitude band index in [0, bands]
-     * @param {number} j - Longitude segment index in [0, segments)
+     * @param {number} i - Latitude band index in [0, latitude]
+     * @param {number} j - Longitude segment index in [0, longitude)
      */
-    private stupidTrigMath(i: number, j: number): {
-        pos: vec4;
-        normal: vec4;
-        tangent: vec4;
-        tex: vec4;
-    } {
-        // Same parameterization you already use
-        const phi   = (-Math.PI / 2) + (i * Math.PI / this.bands);   // [-π/2, +π/2]
-        const theta = j * 2 * Math.PI / this.segments;               // [0, 2π)
+    private stupidTrigMath(i: number, j: number) {
+        // Make j wrap geometrically but NOT in UV
+        const wrappedJ = j % this.longitude;
+
+        const phi   = (-Math.PI / 2) + (i * Math.PI / this.latitude);
+        const theta = wrappedJ * 2 * Math.PI / this.longitude;
 
         const cosPhi   = Math.cos(phi);
         const sinPhi   = Math.sin(phi);
         const cosTheta = Math.cos(theta);
         const sinTheta = Math.sin(theta);
 
-        // Position on sphere
         const x = this.radius * cosPhi * cosTheta;
         const y = this.radius * sinPhi;
         const z = this.radius * cosPhi * sinTheta;
 
         const pos = new vec4(x, y, z, 1);
-
-        // Outward normal = normalized position (radius cancels)
         const normal = new vec4(
             cosPhi * cosTheta,
             sinPhi,
@@ -155,33 +149,26 @@ export class Sphere extends RenderableObject {
             0
         );
 
-        // Tangent = ∂p/∂θ direction (longitude direction), normalized
-        // ∂/∂θ [r cosφ cosθ, r sinφ, r cosφ sinθ]
-        //   = [-r cosφ sinθ, 0, r cosφ cosθ]
         let tx = -cosPhi * sinTheta;
         let ty = 0;
         let tz =  cosPhi * cosTheta;
-
         const tLen = Math.hypot(tx, tz);
         if (tLen > 0.0) {
             tx /= tLen;
             tz /= tLen;
         } else {
-            // Fallback (at poles)
             tx = 1; ty = 0; tz = 0;
         }
-
         const tangent = new vec4(tx, ty, tz, 0);
 
-        // UVs: simple grid mapping
-        // u wraps around longitude, v goes from south (-π/2) to north (+π/2)
-        const u = 1 - (j / this.segments); // [0, 1) around
-        const v = i / this.bands;    // [0, 1] bottom to top
+        // UVs: j runs 0..segments, so u runs 0..1
+        const u = 1- (j / this.longitude);
+        const v = i / this.latitude;
 
         const tex = new vec4(u, v, 0, 0);
-
         return { pos, normal, tangent, tex };
     }
+
 
     public getRadius():number{
         return this.radius;

@@ -6,17 +6,44 @@ in vec2 ftexCoord;
 in vec3 vT;       // parallel to surface in eye space
 in vec3 vN;       // perpendicular to surface in eye space
 in vec4 position;
+in vec4 fSpecularColor;
+in float fSpecularExponent;
 
 uniform vec4 light_position;
 uniform vec4 light_color;
 uniform vec4 ambient_light;
 uniform sampler2D colorMap;
 uniform sampler2D normalMap;
+uniform sampler2D specMap;
+uniform sampler2D nightMap;
 
 uniform bool useNormalMap;
 uniform bool useColorMap;
+uniform bool useSpecMap;
+uniform bool useNightMap;
 
 out vec4 fColor;
+
+vec4 specular(vec3 N, vec3 L, float lambert, vec3 E){
+        vec4 specMapVal = texture(specMap,ftexCoord);
+        if(specMapVal.r >= 0.5){
+            float specFactor = 0.0;
+            if (lambert > 0.0) {
+                vec3 R  = normalize(reflect(-L, N));
+                float RV = max(dot(R, E), 0.0);
+                specFactor = pow(RV, fSpecularExponent);
+            }
+            return specFactor * fSpecularColor * light_color;
+        }else{
+            return vec4(0.0);
+        }
+}
+
+vec4 color(){
+    return texture(colorMap, ftexCoord);
+}
+
+
 
 void main()
 {
@@ -42,7 +69,6 @@ void main()
     vec3 N;
 
     if (useNormalMap) {
-        // Normal from normal-map in tangent space, remapped from [0,1] -> [-1,1]
         vec3 nT = texture(normalMap, ftexCoord).xyz * 2.0 - 1.0;
 
         // Transform to eye space via TBN
@@ -52,18 +78,35 @@ void main()
         N = nvN;
     }
 
+    vec4 baseColor = vec4(1.0);  // default white
 
-    vec4 baseColor = texture(colorMap, ftexCoord);
+    if (useColorMap) {
+        baseColor = color();
+    }
+
+
+    float lambert = max(dot(L, N), 0.0);
 
     vec4 amb = baseColor * ambient_light;
 
-    float lambert = max(dot(L, N), 0.0);
     vec4 diff = lambert * baseColor * light_color;
 
-    // No specular term for now
     fColor = amb + diff;
 
+    if(useSpecMap){
+        fColor += specular(N, L, lambert, E);
+    }
 
+    //Nighttime
+    float ndotl   = dot(L, N);
 
+    vec4 nightColor = texture(nightMap, ftexCoord);
+    float twilight = smoothstep(0.0, 0.2, ndotl);
+
+    if (useNightMap) {
+        fColor = mix(nightColor, fColor, twilight);
+    }
 
 }
+
+

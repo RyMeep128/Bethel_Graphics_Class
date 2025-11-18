@@ -11,8 +11,11 @@ let anisotropic_ext;
 let sphereBufferId: WebGLBuffer;
 let sphereVertCount: number = 0;
 
-let flatEnabled:boolean = false;
+let colorEnabled:boolean = false;
 let normalEnabled:boolean = false;
+let specEnabled:boolean = false;
+let nightEnabled:boolean = false;
+let cloudEnabled:boolean = false;
 
 //uniform locations
 let umv:WebGLUniformLocation; //uniform for mv matrix
@@ -26,14 +29,27 @@ let p:mat4; //local projection
 let vPosition:GLint; //
 let vNormal:GLint; //actually need a normal vector to modify
 let vTangent:GLint; //need a tangent vector as well
-let utexmapsampler:WebGLUniformLocation;//this will be a pointer to our sampler2D
+
+let uColormapsampler:WebGLUniformLocation;//this will be a pointer to our sampler2D
 let unormalmapsampler:WebGLUniformLocation;
+let uSpecmapsampler:WebGLUniformLocation;
+let uNightmapsampler:WebGLUniformLocation;
+
 let uLightPosition:WebGLUniformLocation;
 let uAmbienLight:WebGLUniformLocation;
 let uLightColor:WebGLUniformLocation;
+
+let uLightPositionClouds:WebGLUniformLocation;
+let uAmbienLightClouds:WebGLUniformLocation;
+let uLightColorClouds:WebGLUniformLocation;
+
 let vTexCoord:GLint;
 let uTextureSampler:WebGLUniformLocation;//this will be a pointer to our sampler2D
 let uUseNormalMap:WebGLUniformLocation;
+let uUseColorMap:WebGLUniformLocation;
+let uUseSpecMap:WebGLUniformLocation;
+let uUseNightMap:WebGLUniformLocation;
+let uUseCloudMap:WebGLUniformLocation;
 
 
 
@@ -61,18 +77,63 @@ let flatimage:HTMLImageElement;
 let brickcolorimage:HTMLImageElement;
 let bricknormalimage:HTMLImageElement;
 
+let specTex:WebGLTexture;
+let earthSpecimage:HTMLImageElement;
+
+let nightTex:WebGLTexture;
+let earthNightimage:HTMLImageElement;
+
+let cloudProgram: WebGLProgram;
+let cloudMV: WebGLUniformLocation;
+let cloudProj: WebGLUniformLocation;
+let cloudSampler: WebGLUniformLocation;
+
+let cloudSphere: Sphere;
+let cloudBufferId: WebGLBuffer;
+let cloudData: any[] = [];
+
+let cloudPosition: GLint;
+let cloudTexCoord: GLint;
+
+let cloudTex: WebGLTexture;
+let cloudImage: HTMLImageElement;
+
+
+
 window.onload = function init() {
 
-    const flatBox = document.getElementById("flat") as HTMLInputElement;
+    const colorBox = document.getElementById("color") as HTMLInputElement;
     const normalBox = document.getElementById("normal") as HTMLInputElement;
+    const specBox = document.getElementById("spec") as HTMLInputElement;
+    const nightBox = document.getElementById("night") as HTMLInputElement;
+    const cloudBox = document.getElementById("cloud") as HTMLInputElement;
+    const slider = document.getElementById("slider") as HTMLInputElement;
 
-    // flatBox.addEventListener("change", () => {
-    //     flatEnabled = flatBox.checked;
-    // });
+
+
+    colorBox.addEventListener("change", () => {
+        colorEnabled = colorBox.checked;
+        console.log(colorEnabled);
+    });
 
     normalBox.addEventListener("change", () => {
         normalEnabled = normalBox.checked;
         console.log(normalEnabled);
+    });
+
+    specBox.addEventListener("change", () => {
+        specEnabled = specBox.checked;
+        console.log(specEnabled);
+    });
+
+    nightBox.addEventListener("change", () => {
+        nightEnabled = nightBox.checked;
+        console.log(nightEnabled);
+    });
+
+    cloudBox.addEventListener("change", () => {
+        cloudEnabled = cloudBox.checked;
+        console.log(cloudEnabled);
     });
 
 
@@ -81,6 +142,11 @@ window.onload = function init() {
     if (!gl) {
         alert("WebGL isn't available");
     }
+    slider.addEventListener("change", function () {
+        canvas.width = Number(slider.value);
+        canvas.height = Number(slider.value);
+    })
+
 
 
     //allow the user to rotate mesh with the mouse
@@ -96,6 +162,19 @@ window.onload = function init() {
 
     program = initFileShaders(gl, "vshader-normal.glsl", "fshader-normal.glsl");
 
+    cloudProgram = initFileShaders(gl, "vshader-cloud.glsl", "fshader-cloud.glsl");
+
+    gl.useProgram(cloudProgram);
+    cloudMV   = gl.getUniformLocation(cloudProgram, "model_view");
+    cloudProj = gl.getUniformLocation(cloudProgram, "projection");
+    cloudSampler = gl.getUniformLocation(cloudProgram, "cloudMap"); // or whatever name you used
+    uUseCloudMap = gl.getUniformLocation(cloudProgram, "useCloudMap");
+    uLightColorClouds = gl.getUniformLocation(cloudProgram, "light_color");
+    uLightPositionClouds = gl.getUniformLocation(cloudProgram, "light_position");
+    uAmbienLightClouds = gl.getUniformLocation(cloudProgram, "ambient_light");
+    gl.uniform1i(cloudSampler, 0); // clouds will use texture unit 0 when drawn
+
+
     gl.useProgram(program);
     umv = gl.getUniformLocation(program, "model_view");
     uproj = gl.getUniformLocation(program, "projection");
@@ -104,13 +183,23 @@ window.onload = function init() {
     uAmbienLight = gl.getUniformLocation(program, "ambient_light");
 
     uUseNormalMap = gl.getUniformLocation(program, "useNormalMap");
+    uUseColorMap = gl.getUniformLocation(program, "useColorMap");
+    uUseSpecMap = gl.getUniformLocation(program, "useSpecMap");
+    uUseNightMap = gl.getUniformLocation(program, "useNightMap");
 
 
-    utexmapsampler = gl.getUniformLocation(program, "colorMap");
-    gl.uniform1i(utexmapsampler, 0);//assign this one to texture unit 0
+
+    uColormapsampler = gl.getUniformLocation(program, "colorMap");
+    gl.uniform1i(uColormapsampler, 0);//assign this one to texture unit 0
 
     unormalmapsampler = gl.getUniformLocation(program, "normalMap");
     gl.uniform1i(unormalmapsampler, 1);//assign normal map to 2nd texture unit
+
+    uSpecmapsampler = gl.getUniformLocation(program, "specMap");
+    gl.uniform1i(uSpecmapsampler, 2);//assign normal map to 2nd texture unit
+
+    uNightmapsampler = gl.getUniformLocation(program, "nightMap");
+    gl.uniform1i(uNightmapsampler, 3);//assign normal map to 2nd texture unit
 
 
     //set up basic perspective viewing
@@ -140,8 +229,7 @@ window.onload = function init() {
                 break;
         }
 
-        p = perspective(zoom, (canvas.clientWidth / canvas.clientHeight), 1, 20);
-        gl.uniformMatrix4fv(uproj, false, p.flatten());
+
         // requestAnimationFrame(render);//and now we need a new frame since we made a change
     });
 
@@ -152,13 +240,10 @@ window.onload = function init() {
 
 let sphereData: any[] = [];
 let earth:Sphere;
-let objects:RenderableObject[] = [];
 
 function generateSphere() {
 
-    earth = new Sphere(gl,program,objects,1);
-
-    objects.push(earth);
+    earth = new Sphere(gl,program,[],5);
 
     sphereData = earth.getObjectData();
 
@@ -185,6 +270,24 @@ function generateSphere() {
     vTexCoord = gl.getAttribLocation(program, "texCoord");
     gl.vertexAttribPointer(vTexCoord, 4, gl.FLOAT, false, stride, 48);
     gl.enableVertexAttribArray(vTexCoord);
+
+
+    cloudSphere = new Sphere(gl, cloudProgram, [], 5.01 ); // or 5 + epsilon
+    cloudData = cloudSphere.getObjectData();
+
+    cloudBufferId = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBufferId);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(cloudData), gl.STATIC_DRAW);
+
+    gl.useProgram(cloudProgram);
+
+    cloudPosition = gl.getAttribLocation(cloudProgram, "vPosition");
+    gl.vertexAttribPointer(cloudPosition, 4, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(cloudPosition);
+
+    cloudTexCoord = gl.getAttribLocation(cloudProgram, "texCoord");
+    gl.vertexAttribPointer(cloudTexCoord, 4, gl.FLOAT, false, stride, 48);
+    gl.enableVertexAttribArray(cloudTexCoord);
 
 }
 
@@ -233,11 +336,29 @@ function initTextures() {
     bricknormalimage = new Image();
     bricknormalimage.onload = function() { handleTextureLoaded(bricknormalimage, normalTex); }
     bricknormalimage.src = './assets/earthNormal.png';
+
+    specTex = gl.createTexture();
+    earthSpecimage = new Image();
+    earthSpecimage.onload = function() { handleTextureLoaded(earthSpecimage, specTex); }
+    earthSpecimage.src = './assets/earthSpec.png';
+
+    nightTex = gl.createTexture();
+    earthNightimage = new Image();
+    earthNightimage.onload = function() { handleTextureLoaded(earthNightimage, nightTex); }
+    earthNightimage.src = './assets/EarthNight.png';
+
+    cloudTex = gl.createTexture();
+    cloudImage = new Image();
+    cloudImage.onload = function() { handleTextureLoaded(cloudImage, cloudTex); }
+    cloudImage.src = './assets/earthcloudmap-visness.png';
+
 }
+
 
 function handleTextureLoaded(image:HTMLImageElement, texture:WebGLTexture) {
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT); // Maybe here: thoughts from MICAH
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -250,11 +371,18 @@ function handleTextureLoaded(image:HTMLImageElement, texture:WebGLTexture) {
 
 
 function render() {
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, sphereBufferId);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    p = perspective(zoom, (canvas.clientWidth / canvas.clientHeight), 1, 20);
+    gl.uniformMatrix4fv(uproj, false, p.flatten());
 
 // camera at z=5 looking at origin
     const camera: mat4 = lookAt(
-        new vec4(0, 0, 5, 1),
+        new vec4(0, 0, 20, 1),
         new vec4(0, 0, 0, 1),
         new vec4(0, 1, 0, 0)
     );
@@ -276,7 +404,7 @@ function render() {
 
     // Transform to eye space using the same MV matrix
     const lightEye = earthMV.mult(localLightPos); // assuming mat4.mult(vec4) exists
-
+    //
 
     earth.addYaw(spinAngle);            // always spinning
     earth.update(camera);
@@ -299,15 +427,65 @@ function render() {
 
 
     gl.uniform1i(uUseNormalMap, normalEnabled ? 1 : 0);
-    gl.activeTexture(gl.TEXTURE1);
-    if (normalEnabled) {
-        gl.bindTexture(gl.TEXTURE_2D, normalTex);
-    } else {
-        gl.bindTexture(gl.TEXTURE_2D, null);
-    }
+    gl.uniform1i(uUseSpecMap, specEnabled ? 1 : 0);
+    gl.uniform1i(uUseColorMap, colorEnabled ? 1 : 0);
+    gl.uniform1i(uUseNightMap, nightEnabled ? 1 : 0);
 
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, normalTex);
+
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, specTex);
+
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, nightTex);
 
 
 // draw sphere
     earth.draw();
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cloudBufferId);
+    gl.useProgram(cloudProgram);
+    gl.disable(gl.DEPTH_TEST);
+
+    gl.uniform1i(uUseCloudMap, cloudEnabled ? 1 : 0);
+
+    cloudSphere.resetRotation();
+    cloudSphere.addPitch(xAngle);
+    cloudSphere.addYaw(yAngle);
+    cloudSphere.addYaw(spinAngle);      // same spin as Earth
+    const cloudMVMat: mat4 = cloudSphere.update(camera);
+
+    gl.uniformMatrix4fv(cloudProj, false, p.flatten());
+    gl.uniformMatrix4fv(cloudMV,   false, cloudMVMat.flatten());
+    gl.uniform4fv(uLightPositionClouds, [
+        lightEye[0],
+        lightEye[1],
+        lightEye[2],
+        lightEye[3]
+    ]);
+    gl.uniform4fv(uLightColorClouds, [1, 1, 1, 1]);
+    gl.uniform4fv(uAmbienLightClouds, [0.1, 0.1, 0.1, 1]);
+
+    const stride = 64;
+    cloudPosition = gl.getAttribLocation(cloudProgram, "vPosition");
+    gl.vertexAttribPointer(cloudPosition, 4, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(cloudPosition);
+
+    cloudTexCoord = gl.getAttribLocation(cloudProgram, "texCoord");
+    gl.vertexAttribPointer(cloudTexCoord, 4, gl.FLOAT, false, stride, 48);
+    gl.enableVertexAttribArray(cloudTexCoord);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, cloudTex);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    cloudSphere.draw();
+
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+
 }
