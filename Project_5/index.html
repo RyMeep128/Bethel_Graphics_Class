@@ -2,17 +2,22 @@
 <head>
     <title>Project 2</title>
     <link rel="stylesheet" href="index.css"/>
-    <script type = "module" src="index.js"></script>
+    <script type="module" src="index.js"></script>
 </head>
 <body>
-    <div class = "header">Spin Spin</div>
-    <canvas class = "canvas" id = "gl-canvas" width="1024" height="1024">
-        Sorry; your web browser doesn't support HTML5's canvas element.
-    </canvas>
-    <div class = "instructions">
-        <input type="range" min="128" max="1024" value="50" class="slider" id="slider">
-        <label for="slider"> Canvas Size</label><br>
-
+<div class="main">
+    <div class="instructions">
+        <h1>Instructions</h1>
+        Welcome! The up and down arrow zooms in and out respectively<br>
+        The "f" key pauses the natural rotation
+    </div>
+    <div class="wrapper">
+        <div class="header">Spin Spin</div>
+        <canvas class="canvas" id="gl-canvas" width="1000" height="1000">
+            Sorry; your web browser doesn't support HTML5's canvas element.
+        </canvas>
+    </div>
+    <div class="instructions">
         <input type="checkbox" id="color" name="flat" value="true">
         <label for="color"> Color Texture</label><br>
 
@@ -28,7 +33,7 @@
         <input type="checkbox" id="cloud" name="cloud" value="true">
         <label for="cloud">Clouds Texture</label><br>
     </div>
-    <div class = "feedback"></div>
+</div>
 </body>
 
 </html>

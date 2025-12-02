@@ -1,4 +1,4 @@
-import {initFileShaders, mat4, ortho, flatten, vec2, vec4} from "../helperfunctions.js";
+import {initFileShaders, mat4, ortho, flatten, vec2, vec4} from "./helperfunctions.js";
 
 "use strict";
 //it will be handy to have references to some of our WebGL related objects
@@ -96,7 +96,7 @@ window.onload = function init() {
     //What color do you want the background to be?  This sets it to black and opaque.
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
 
-    window.setInterval(update, 60); //was getting some weird framerate issues with rates faster than this, didn't have time to diagnose properly
+    window.setInterval(update, 1); //was getting some weird framerate issues with rates faster than this, didn't have time to diagnose properly
 };
 
 function update(){

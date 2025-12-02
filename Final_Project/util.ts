@@ -36,7 +36,7 @@ export const Rotation: number = 1;
  * - Higher values = smoother curvature.
  * - 64 bands is a reasonable default for visual quality vs. performance.
  */
-export const Detail: number = 512;
+export const Detail: number = 32;
 
 /**
  * Maximum wheel steering angle in degrees (left or right) for the car.

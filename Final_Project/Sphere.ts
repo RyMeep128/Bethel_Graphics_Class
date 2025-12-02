@@ -1,5 +1,6 @@
 import {RenderableObject} from "./RenderableObject.js";
 import {vec4} from "./helperfunctions.js";
+import * as util from "./util.js" ;
 
 /**
  * Triangulated UV sphere built from latitude and longitude.
@@ -36,9 +37,6 @@ export class Sphere extends RenderableObject {
     /** Per-vertex normals (vec4, w = 0) pointing outward from the sphere. */
     private normals:vec4[] = [];
 
-    /** Per-vertex tangents (vec4, w = 0), aligned with increasing longitude. */
-    private tangents: vec4[] = [];
-
     /**
      * Per-vertex texture coordinates stored as vec4.
      * @remarks Only `.x` and `.y` components (u, v) are used by the shader.
@@ -74,7 +72,7 @@ export class Sphere extends RenderableObject {
     ) {
         super(gl,program, objectArr, 1, x, y, z,yaw,pitch,roll);
         this.radius = radius;
-        this.latitude = 512;
+        this.latitude = util.Detail;
         this.longitude = this.latitude/2;
 
         // Build quads as two triangles (tl-bl-tr) and (tr-bl-br) for each lat/long cell.
@@ -89,33 +87,27 @@ export class Sphere extends RenderableObject {
                 // Triangle 1: tl, bl, tr
                 this.vertices.push(tl.pos); this.vertexCount++;
                 this.normals.push(tl.normal);
-                this.tangents.push(tl.tangent);
                 this.texCoords.push(tl.tex);
 
                 this.vertices.push(bl.pos); this.vertexCount++;
                 this.normals.push(bl.normal);
-                this.tangents.push(bl.tangent);
                 this.texCoords.push(bl.tex);
 
                 this.vertices.push(tr.pos); this.vertexCount++;
                 this.normals.push(tr.normal);
-                this.tangents.push(tr.tangent);
                 this.texCoords.push(tr.tex);
 
                 // Triangle 2: tr, bl, br
                 this.vertices.push(tr.pos); this.vertexCount++;
                 this.normals.push(tr.normal);
-                this.tangents.push(tr.tangent);
                 this.texCoords.push(tr.tex);
 
                 this.vertices.push(bl.pos); this.vertexCount++;
                 this.normals.push(bl.normal);
-                this.tangents.push(bl.tangent);
                 this.texCoords.push(bl.tex);
 
                 this.vertices.push(br.pos); this.vertexCount++;
                 this.normals.push(br.normal);
-                this.tangents.push(br.tangent);
                 this.texCoords.push(br.tex);
             }
         }
@@ -158,30 +150,12 @@ export class Sphere extends RenderableObject {
             0
         );
 
-        // Tangent: direction of increasing theta (longitude)
-        let tx = -cosPhi * sinTheta;
-        let ty = 0;
-        let tz =  cosPhi * cosTheta;
-        const tLen = Math.hypot(tx, tz);
-        if (tLen > 0.0) {
-            tx /= tLen;
-            tz /= tLen;
-        } else {
-            tx = 1; ty = 0; tz = 0;
-        }
-
-        // Flip direction if desired (e.g., to match TBN handedness)
-        tx = -tx;
-        ty = -ty;
-        tz = -tz;
-        const tangent = new vec4(tx, ty, tz, 0);
-
         // UVs: j runs 0..segments, so u runs 0..1
         const u = 1 - (j / this.longitude);
         const v = i / this.latitude;
 
         const tex = new vec4(u, v, 0, 0);
-        return { pos, normal, tangent, tex };
+        return { pos, normal, tex };
     }
 
     /**
@@ -203,7 +177,7 @@ export class Sphere extends RenderableObject {
      *   `[pos0, n0, t0, uv0, pos1, n1, t1, uv1, ...]`.
      */
     public getObjectData(): vec4[] {
-        return this.loadingArrayHelper(this.vertices,this.normals,this.tangents,this.texCoords);
+        return this.loadingArrayHelper(this.vertices,this.normals,this.texCoords);
     }
 
 }

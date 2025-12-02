@@ -12,21 +12,68 @@ uniform vec2 controlPoints[4];
 out vec4 color;
 
 vec4 bezier(){
-    //TODO fill this in
-    //following line is just to make compiler happy, delete later
-    return vec4(100,100,100,1);
+    vec4 tVec = vec4(
+    (1.0-t)*(1.0-t)*(1.0-t),
+    3.0 * (1.0-t)*(1.0-t)*t,
+    3.0 * (1.0-t)*t*t,
+    t*t*t
+    );
+
+    //Column major, we have the rows. Makes it easier to make a 4x2 then transpose it
+    mat2x4 coordMat = transpose(mat4x2(
+    controlPoints[0],
+    controlPoints[1],
+    controlPoints[2],
+    controlPoints[3]
+    ));
+
+    //Dummy Z and W. The matrix mutiplcation gave a vec2
+    return  vec4(tVec * coordMat,0.0,1.0);
 }
 
 vec4 bSpline(){
-    //TODO Fill this in
     //following line is just to make compiler happy, delete later
-    return vec4(100,100,100,1);
+    vec4 tVec = vec4(
+    (1.0-t)*(1.0-t)*(1.0-t),
+    3.0*t*t*t  - 6.0 * t*t + 4.0,
+    -3.0 * t*t*t  + 3.0*t*t + 3.0*t + 1.0,
+    t*t*t
+    )/6.0;
+
+    //Column major, we have the rows. Makes it easier to make a 4x2 then transpose it
+    mat2x4 coordMat = transpose(mat4x2(
+    controlPoints[0],
+    controlPoints[1],
+    controlPoints[2],
+    controlPoints[3]
+    ));
+
+    //Dummy Z and W. The matrix mutiplcation gave a vec2
+    return  vec4(tVec * coordMat,0.0,1.0);
 }
 
 vec4 cr(){
     //TODO we'll fill this on in together
     //following line is just to make compiler happy, delete later
-    return vec4(100,100,100,1);
+    vec4 tVec = vec4(
+        -t + 2.0*t*t - t*t*t,
+        2.0 -  5.0*t*t + 3.0*t*t*t,
+        t + 4.0*t*t  - 3.0*t*t*t,
+        -t*t + t*t*t
+    )/2.0;
+
+    //Column major, we have the rows. Makes it easier to make a 4x2 then transpose it
+    mat2x4 coordMat = transpose(mat4x2(
+        controlPoints[0],
+        controlPoints[1],
+        controlPoints[2],
+        controlPoints[3]
+    ));
+
+    //Dummy Z and W. The matrix mutiplcation gave a vec2
+    return  vec4(tVec * coordMat,0.0,1.0);
+
+
 }
 
 vec4 lerp(){

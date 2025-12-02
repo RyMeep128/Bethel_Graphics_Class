@@ -40,6 +40,8 @@ export abstract class RenderableObject {
     /** Location of the `model_view` uniform in the shader program. */
     protected umv: WebGLUniformLocation;
 
+    protected uColor:WebGLUniformLocation;
+
     /** Model translation on X (world units). */
     protected x: number;
 
@@ -70,8 +72,7 @@ export abstract class RenderableObject {
     /** Optional binding group identifier (e.g., for batched binding). */
     private bindingGroup: number;
 
-    /** Optional color palette per-vertex or per-face (implementation-defined). */
-    protected color: vec4[];
+    protected color: vec4;
 
     /**
      * Starting vertex offset into the global draw stream.
@@ -131,12 +132,17 @@ export abstract class RenderableObject {
         this.umv = gl.getUniformLocation(program, "model_view");
         this.aSpecColor = gl.getAttribLocation(program, "vSpecularColor");
         this.aSpecExp = gl.getAttribLocation(program, "vSpecularExponent");
+        this.uColor = gl.getUniformLocation(program, "uColor");
 
         // Compute starting vertex offset by summing all previous objects' vertex counts.
         this.startDrawing = 0;
         for (let i = 0; i < objectArr.length; i++) {
             this.startDrawing += objectArr[i].getVertexCount();
         }
+    }
+
+    public setColor(color: vec4) {
+        this.color = color;
     }
 
     /**
@@ -244,6 +250,15 @@ export abstract class RenderableObject {
      * @returns {void}
      */
     public draw(): void {
+
+        this.gl.uniform4f(this.uColor, this.color[0], this.color[1], this.color[2],this.color[3]);
+
+        // if (this.texture) {
+        //     this.gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        // } else {
+        //     this.gl.bindTexture(gl.TEXTURE_2D, whiteTexture);
+        // }
+
         // Per-object material fields with hard-coded defaults for now.
         const specularColor = new vec4(1, 1, 1, 1); // default
         const specularExp = 10;
@@ -482,34 +497,18 @@ export abstract class RenderableObject {
         return m;
     }
 
-    /**
-     * Interleaves position, normal, tangent, and texcoord arrays for a single face.
-     *
-     * Per-vertex layout (in this order):
-     *   [ position(vec4), normal(vec4), tangent(vec4), texCoord(vec4) ]
-     *
-     * This corresponds to 16 floats per vertex (64 bytes when using 4-byte floats).
-     *
-     * @param {vec4[]} face      - Vertex positions for the face
-     * @param {vec4[]} normal    - Vertex normals aligned with {@link face}
-     * @param {vec4[]} tangent   - Vertex tangents aligned with {@link face}
-     * @param {vec4[]} texCoord  - Vertex texcoords (use .x, .y in shader) aligned with {@link face}
-     * @returns {vec4[]} Interleaved array: [pos0, n0, t0, uv0, pos1, n1, t1, uv1, ...]
-     * @protected
-     */
     protected loadingArrayHelper(
         face: vec4[],
-        normal: vec4[],
-        tangent: vec4[],
-        texCoord: vec4[]
+        normals: vec4[],
+        texcoords: vec4[]
     ): vec4[] {
-        const tempArr: vec4[] = [];
+        const temp: vec4[] = [];
         for (let i = 0; i < face.length; i++) {
-            tempArr.push(face[i]);      // position
-            tempArr.push(normal[i]);    // normal
-            tempArr.push(tangent[i]);   // tangent
-            tempArr.push(texCoord[i]);  // texcoord (use .x, .y)
+            temp.push(face[i]);       // pos
+            temp.push(normals[i]);    // normal
+            temp.push(texcoords[i]);  // uv (xy only)
         }
-        return tempArr;
+        return temp;
     }
+
 }
