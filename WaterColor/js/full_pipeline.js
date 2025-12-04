@@ -246,7 +246,7 @@ function initGui() {
     vShader.uniforms.v.value = Math.pow(value, -1);
     verticalBlurPass = new ShaderPass(vShader);
   });
-  // step 
+  // step
   var stepConstants = { 
     k_p: 0.7,
   }

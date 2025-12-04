@@ -5,7 +5,7 @@ import {
     rotateZ,
     translate,
     vec4,
-} from "./helperfunctions.js";
+} from "../../../Utility/helperfunctions.js";
 
 /**
  * Abstract base class for renderable WebGL objects.
@@ -17,7 +17,7 @@ import {
  *
  * Subclasses (e.g., {@link Sphere}) must:
  * - Supply geometry/color data via {@link getObjectData}
- * - Use {@link loadingArrayHelper} to interleave [position, normal, tangent, texCoord] streams
+ * - Use {@link loadingArrayHelper} to interleave [position, normal, texCoord] streams
  *
  * @abstract
  * @class RenderableObject
@@ -25,11 +25,11 @@ import {
  * @author Some comments by ChatGPT Model 5
  */
 export abstract class RenderableObject {
-    /** WebGL context used for buffer management and drawing. */
-    protected gl: WebGLRenderingContext;
+    /** WebGL2 context used for buffer management and drawing. */
+    protected gl: WebGL2RenderingContext;
 
     /** Linked shader program whose attributes/uniforms are consumed by this object. */
-    protected program: WebGLProgram;
+    protected shader: WebGLProgram;
 
     /**
      * GPU buffer for this object's interleaved vertex data.
@@ -40,7 +40,8 @@ export abstract class RenderableObject {
     /** Location of the `model_view` uniform in the shader program. */
     protected umv: WebGLUniformLocation;
 
-    protected uColor:WebGLUniformLocation;
+    /** Location of the per-object color uniform `uColor` in the shader program. */
+    protected uColor: WebGLUniformLocation;
 
     /** Model translation on X (world units). */
     protected x: number;
@@ -72,6 +73,10 @@ export abstract class RenderableObject {
     /** Optional binding group identifier (e.g., for batched binding). */
     private bindingGroup: number;
 
+    /**
+     * Per-object RGBA color used when rendering.
+     * Typically sent to the shader via `uColor`.
+     */
     protected color: vec4;
 
     /**
@@ -95,21 +100,21 @@ export abstract class RenderableObject {
     /**
      * Constructs a renderable object with initial transform and draw bookkeeping.
      *
-     * @param {WebGLRenderingContext} gl - WebGL context
-     * @param {WebGLProgram} program - Compiled & linked shader program
-     * @param {RenderableObject[]} objectArr - Already-constructed renderables; used to compute this object's starting draw offset
-     * @param {number} sides - Number of faces in the object (e.g., 6 for a cube)
-     * @param {number} [x=0] - Initial world X translation (default 0)
-     * @param {number} [y=0] - Initial world Y translation (default 0)
-     * @param {number} [z=0] - Initial world Z translation (default 0)
-     * @param {number} [yaw=0] - Initial yaw in degrees (default 0)
-     * @param {number} [pitch=0] - Initial pitch in degrees (default 0)
-     * @param {number} [roll=0] - Initial roll in degrees (default 0)
+     * @param {WebGL2RenderingContext} gl - WebGL2 context.
+     * @param {WebGLProgram} shader - Compiled & linked shader program.
+     * @param {RenderableObject[]} objectArr - Already-constructed renderables; used to compute this object's starting draw offset.
+     * @param {number} sides - Number of faces in the object (e.g., 6 for a cube).
+     * @param {number} [x=0] - Initial world X translation.
+     * @param {number} [y=0] - Initial world Y translation.
+     * @param {number} [z=0] - Initial world Z translation.
+     * @param {number} [yaw=0] - Initial yaw in degrees.
+     * @param {number} [pitch=0] - Initial pitch in degrees.
+     * @param {number} [roll=0] - Initial roll in degrees.
      * @protected
      */
     protected constructor(
-        gl: WebGLRenderingContext,
-        program: WebGLProgram,
+        gl: WebGL2RenderingContext,
+        shader: WebGLProgram,
         objectArr: RenderableObject[],
         sides: number,
         x: number = 0,
@@ -127,12 +132,12 @@ export abstract class RenderableObject {
         this.roll = roll;
         this.vertexCount = 0;
         this.gl = gl;
-        this.program = program;
+        this.shader = shader;
         this.sides = sides;
-        this.umv = gl.getUniformLocation(program, "model_view");
-        this.aSpecColor = gl.getAttribLocation(program, "vSpecularColor");
-        this.aSpecExp = gl.getAttribLocation(program, "vSpecularExponent");
-        this.uColor = gl.getUniformLocation(program, "uColor");
+        this.umv = gl.getUniformLocation(shader, "model_view");
+        this.aSpecColor = gl.getAttribLocation(shader, "vSpecularColor");
+        this.aSpecExp = gl.getAttribLocation(shader, "vSpecularExponent");
+        this.uColor = gl.getUniformLocation(shader, "uColor");
 
         // Compute starting vertex offset by summing all previous objects' vertex counts.
         this.startDrawing = 0;
@@ -141,7 +146,13 @@ export abstract class RenderableObject {
         }
     }
 
-    public setColor(color: vec4) {
+    /**
+     * Sets the per-object RGBA color used for rendering.
+     *
+     * @param {vec4} color - New color as a vec4 `[r, g, b, a]`.
+     * @returns {void}
+     */
+    public setColor(color: vec4): void {
         this.color = color;
     }
 
@@ -151,8 +162,8 @@ export abstract class RenderableObject {
      * @remarks
      * Assumes the caller supplies a valid incoming parent model-view matrix.
      *
-     * @param {mat4} parent - Parent model-view matrix
-     * @returns {mat4} The final model-view matrix after translate/rotate
+     * @param {mat4} parent - Parent model-view matrix.
+     * @returns {mat4} The final model-view matrix after translate/rotate.
      */
     public update(parent: mat4): mat4 {
         let mv = this.translate(parent);
@@ -164,18 +175,31 @@ export abstract class RenderableObject {
     /**
      * Uploads the model-view matrix to the `model_view` shader uniform.
      *
-     * @param {mat4} mv - Model-view matrix to upload
+     * @param {mat4} mv - Model-view matrix to upload.
      * @returns {void}
      */
     public updateGPUBuffer(mv: mat4): void {
+        this.gl.useProgram(this.shader);
+        const current = this.gl.getParameter(this.gl.CURRENT_PROGRAM) as WebGLProgram;
+
+        if (current !== this.shader) {
+            console.error("Program mismatch in updateGPUBuffer",
+                { current, objectProgram: this.shader, umv: this.umv });
+        }
+
+        if (!this.umv) {
+            console.error("model_view uniform location is null for this.program");
+            return;
+        }
+
         this.gl.uniformMatrix4fv(this.umv, false, mv.flatten());
     }
 
     /**
      * Applies translation to the provided matrix.
      *
-     * @param {mat4} [parent] - Incoming model-view matrix (required in normal usage)
-     * @returns {mat4} The translated model-view matrix
+     * @param {mat4} [parent] - Incoming model-view matrix (required in normal usage).
+     * @returns {mat4} The translated model-view matrix.
      *
      * @remarks
      * This method expects a valid `parent` matrix to be provided by the caller.
@@ -193,8 +217,8 @@ export abstract class RenderableObject {
     /**
      * Applies yaw, pitch, and roll (Y → X → Z) to the provided matrix.
      *
-     * @param {mat4} parent - Incoming model-view matrix (required for composition)
-     * @returns {mat4} The rotated model-view matrix
+     * @param {mat4} parent - Incoming model-view matrix (required for composition).
+     * @returns {mat4} The rotated model-view matrix.
      */
     public rotate(parent: mat4): mat4 {
         let mv: mat4;
@@ -211,9 +235,9 @@ export abstract class RenderableObject {
     /**
      * Expands a single color to a per-vertex color array for a face.
      *
-     * @param {vec4} color - The color to repeat
-     * @param {vec4[]} face - The face vertex array used to match the length
-     * @returns {vec4[]} A color array aligned to the number of vertices in the face
+     * @param {vec4} color - The color to repeat.
+     * @param {vec4[]} face - The face vertex array used to match the length.
+     * @returns {vec4[]} A color array aligned to the number of vertices in the face.
      * @protected
      */
     protected helperColor(color: vec4, face: vec4[]): vec4[] {
@@ -224,21 +248,6 @@ export abstract class RenderableObject {
         return tempArr;
     }
 
-    /**
-     * Generates a repeating gradient color array to match a face's vertex count.
-     *
-     * @param {vec4[]} colors - Palette used cyclically
-     * @param {vec4[]} face - The face vertex array used to match the length
-     * @returns {vec4[]} A color array cycling through the provided palette
-     * @protected
-     */
-    protected helperGradientColor(colors: vec4[], face: vec4[]): vec4[] {
-        const tempArr: vec4[] = [];
-        for (let i = 0; i < face.length; i++) {
-            tempArr.push(colors[i % colors.length]);
-        }
-        return tempArr;
-    }
 
     /**
      * Issues the draw call for this object.
@@ -250,8 +259,7 @@ export abstract class RenderableObject {
      * @returns {void}
      */
     public draw(): void {
-
-        this.gl.uniform4f(this.uColor, this.color[0], this.color[1], this.color[2],this.color[3]);
+        this.gl.uniform4f(this.uColor, this.color[0], this.color[1], this.color[2], this.color[3]);
 
         // if (this.texture) {
         //     this.gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -259,8 +267,7 @@ export abstract class RenderableObject {
         //     this.gl.bindTexture(gl.TEXTURE_2D, whiteTexture);
         // }
 
-        // Per-object material fields with hard-coded defaults for now.
-        const specularColor = new vec4(1, 1, 1, 1); // default
+        const specularColor = new vec4(1, 1, 1, 1);
         const specularExp = 10;
 
         if (this.aSpecColor !== -1) {
@@ -319,7 +326,7 @@ export abstract class RenderableObject {
 
     /**
      * Sets absolute X translation.
-     * @param {number} nx - New X in world units
+     * @param {number} nx - New X in world units.
      * @returns {void}
      */
     public setX(nx: number): void {
@@ -328,7 +335,7 @@ export abstract class RenderableObject {
 
     /**
      * Sets absolute Y translation.
-     * @param {number} ny - New Y in world units
+     * @param {number} ny - New Y in world units.
      * @returns {void}
      */
     public setY(ny: number): void {
@@ -337,7 +344,7 @@ export abstract class RenderableObject {
 
     /**
      * Sets absolute Z translation.
-     * @param {number} nz - New Z in world units
+     * @param {number} nz - New Z in world units.
      * @returns {void}
      */
     public setZ(nz: number): void {
@@ -346,7 +353,7 @@ export abstract class RenderableObject {
 
     /**
      * Sets absolute yaw angle in degrees (rotation about +Y).
-     * @param {number} nt - New yaw in degrees
+     * @param {number} nt - New yaw in degrees.
      * @returns {void}
      */
     public setYaw(nt: number): void {
@@ -356,7 +363,7 @@ export abstract class RenderableObject {
     /**
      * Sets absolute pitch angle in degrees (rotation about +X).
      *
-     * @param {number} pitch - New pitch in degrees
+     * @param {number} pitch - New pitch in degrees.
      * @returns {void}
      */
     public setPitch(pitch: number): void {
@@ -365,7 +372,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to X translation.
-     * @param {number} nx - Delta X in world units
+     * @param {number} nx - Delta X in world units.
      * @returns {void}
      */
     public addX(nx: number): void {
@@ -374,7 +381,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to Y translation.
-     * @param {number} ny - Delta Y in world units
+     * @param {number} ny - Delta Y in world units.
      * @returns {void}
      */
     public addY(ny: number): void {
@@ -383,7 +390,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to Z translation.
-     * @param {number} nz - Delta Z in world units
+     * @param {number} nz - Delta Z in world units.
      * @returns {void}
      */
     public addZ(nz: number): void {
@@ -392,7 +399,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to yaw angle.
-     * @param {number} nt - Delta yaw in degrees
+     * @param {number} nt - Delta yaw in degrees.
      * @returns {void}
      */
     public addYaw(nt: number): void {
@@ -401,7 +408,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to pitch angle.
-     * @param {number} np - Delta pitch in degrees
+     * @param {number} np - Delta pitch in degrees.
      * @returns {void}
      */
     public addPitch(np: number): void {
@@ -410,7 +417,7 @@ export abstract class RenderableObject {
 
     /**
      * Adds to roll angle.
-     * @param {number} nr - Delta roll in degrees
+     * @param {number} nr - Delta roll in degrees.
      * @returns {void}
      */
     public addRoll(nr: number): void {
@@ -419,7 +426,7 @@ export abstract class RenderableObject {
 
     /**
      * Sets the binding group identifier for this object.
-     * @param {number} bind - Group ID
+     * @param {number} bind - Group ID.
      * @returns {void}
      */
     public bind(bind: number): void {
@@ -443,7 +450,7 @@ export abstract class RenderableObject {
 
     /**
      * Returns the object's world-space position as a homogeneous coordinate.
-     * @returns {vec4} `[x, y, z, 1]` as a {@link vec4}
+     * @returns {vec4} `[x, y, z, 1]` as a {@link vec4}.
      */
     public getPointInWorld(): vec4 {
         return new vec4(this.x, this.y, this.z);
@@ -453,7 +460,7 @@ export abstract class RenderableObject {
      * Advances the starting draw offset by `count` vertices.
      * Useful when appending geometry into a shared buffer.
      *
-     * @param {number} count - Number of vertices appended before this object
+     * @param {number} count - Number of vertices appended before this object.
      * @returns {void}
      */
     public addVerticesStartCount(count: number): void {
@@ -473,8 +480,8 @@ export abstract class RenderableObject {
      *
      * @abstract
      * @returns {vec4[]} Interleaved array in the form:
-     *   [pos0, normal0, tangent0, tex0,
-     *    pos1, normal1, tangent1, tex1,
+     *   [pos0, normal0, tex0,
+     *    pos1, normal1, tex1,
      *    ...]
      * where each entry is a {@link vec4}.
      */
@@ -497,6 +504,21 @@ export abstract class RenderableObject {
         return m;
     }
 
+    /**
+     * Helper that interleaves per-vertex attributes into a single array:
+     * position, normal, and texture coordinates.
+     *
+     * Layout per vertex:
+     * - `face[i]`     → position
+     * - `normals[i]`  → normal
+     * - `texcoords[i]`→ texture coordinates (uv, stored in a vec4)
+     *
+     * @param {vec4[]} face - Array of position vectors.
+     * @param {vec4[]} normals - Array of normal vectors corresponding to `face`.
+     * @param {vec4[]} texcoords - Array of texture coordinates corresponding to `face`.
+     * @returns {vec4[]} Interleaved array `[pos, normal, texcoord, ...]`.
+     * @protected
+     */
     protected loadingArrayHelper(
         face: vec4[],
         normals: vec4[],
@@ -510,5 +532,4 @@ export abstract class RenderableObject {
         }
         return temp;
     }
-
 }

@@ -1,14 +1,14 @@
-import {RenderableObject} from "./RenderableObject.js";
-import {vec4} from "./helperfunctions.js";
-import * as util from "./util.js" ;
+import { RenderableObject } from "./Base/RenderableObject.js";
+import { vec4 } from "../../Utility/helperfunctions.js";
+import * as util from "../../Utility/util.js";
 
 /**
  * Triangulated UV sphere built from latitude and longitude.
  *
  * - Geometry is generated in the constructor using two triangles per quad patch.
- * - Normals, tangents, and UVs are computed per-vertex for use with normal/specular maps.
+ * - Normals and UVs are computed per-vertex for use with lighting and texture maps.
  * - Call {@link getObjectData} to retrieve the interleaved
- *   `[position, normal, tangent, texCoord]` stream for VBO upload.
+ *   `[position, normal, texCoord]` stream for VBO upload.
  *
  * @class Sphere
  * @extends RenderableObject
@@ -18,24 +18,22 @@ import * as util from "./util.js" ;
 export class Sphere extends RenderableObject {
 
     /** Sphere radius in world units. */
-    private radius:number;
+    private radius: number;
 
-    /**
-     * Number of latitude divisions.
-     */
-    private latitude:number;
+    /** Number of latitude divisions. */
+    private latitude: number;
 
     /**
      * Number of longitude divisions.
      * @remarks Computed as `latitude / 2`.
      */
-    private longitude:number;
+    private longitude: number;
 
     /** Flat list of triangle vertex positions (vec4, w = 1). */
-    private vertices:vec4[] = [];
+    private vertices: vec4[] = [];
 
     /** Per-vertex normals (vec4, w = 0) pointing outward from the sphere. */
-    private normals:vec4[] = [];
+    private normals: vec4[] = [];
 
     /**
      * Per-vertex texture coordinates stored as vec4.
@@ -43,11 +41,10 @@ export class Sphere extends RenderableObject {
      */
     private texCoords: vec4[] = [];
 
-
     /**
      * Creates a new UV sphere and procedurally generates its triangle mesh.
      *
-     * @param {WebGLRenderingContext} gl - WebGL context.
+     * @param {WebGL2RenderingContext} gl - WebGL2 context.
      * @param {WebGLProgram} program - Linked shader program.
      * @param {RenderableObject[]} objectArr - Existing objects; used to compute this object's starting draw offset.
      * @param {number} radius - Sphere radius.
@@ -59,10 +56,10 @@ export class Sphere extends RenderableObject {
      * @param {number} [roll=0] - Initial roll in degrees.
      */
     constructor(
-        gl: WebGLRenderingContext,
+        gl: WebGL2RenderingContext,
         program: WebGLProgram,
         objectArr: RenderableObject[],
-        radius:number,
+        radius: number,
         x: number = 0,
         y: number = 0,
         z: number = 0,
@@ -70,10 +67,10 @@ export class Sphere extends RenderableObject {
         pitch: number = 0,
         roll: number = 0
     ) {
-        super(gl,program, objectArr, 1, x, y, z,yaw,pitch,roll);
+        super(gl, program, objectArr, 1, x, y, z, yaw, pitch, roll);
         this.radius = radius;
         this.latitude = util.Detail;
-        this.longitude = this.latitude/2;
+        this.longitude = this.latitude / 2;
 
         // Build quads as two triangles (tl-bl-tr) and (tr-bl-br) for each lat/long cell.
         for (let i = 0; i < this.latitude; i++) {
@@ -114,16 +111,16 @@ export class Sphere extends RenderableObject {
     }
 
     /**
-     * Computes position, normal, tangent, and texcoord for a given grid point (i, j).
+     * Computes position, normal, and texcoord for a given grid point (i, j).
      *
      * @param {number} i - Latitude band index in [0, latitude].
      * @param {number} j - Longitude segment index in [0, longitude] (wrapping handled internally).
-     * @returns {{pos: vec4, normal: vec4, tangent: vec4, tex: vec4}}
-     *   Object containing the world-space position, normal, tangent, and UV.
+     * @returns {{pos: vec4, normal: vec4, tex: vec4}}
+     *   Object containing the world-space position, normal, and UV.
      *
      * @private
      */
-    private stupidTrigMath(i: number, j: number) {
+    private stupidTrigMath(i: number, j: number): { pos: vec4; normal: vec4; tex: vec4 } {
         // Make j wrap geometrically but NOT in UV
         const wrappedJ = j % this.longitude;
 
@@ -163,7 +160,7 @@ export class Sphere extends RenderableObject {
      *
      * @returns {number} Sphere radius.
      */
-    public getRadius():number{
+    public getRadius(): number {
         return this.radius;
     }
 
@@ -171,13 +168,14 @@ export class Sphere extends RenderableObject {
      * Supplies interleaved vertex data for rendering.
      *
      * Layout per-vertex:
-     *   [ position(vec4), normal(vec4), tangent(vec4), texCoord(vec4) ]
+     *   [ position(vec4), normal(vec4), texCoord(vec4) ]
      *
+     * @override
      * @returns {vec4[]} Interleaved
-     *   `[pos0, n0, t0, uv0, pos1, n1, t1, uv1, ...]`.
+     *   `[pos0, n0, uv0, pos1, n1, uv1, ...]`.
      */
     public getObjectData(): vec4[] {
-        return this.loadingArrayHelper(this.vertices,this.normals,this.texCoords);
+        return this.loadingArrayHelper(this.vertices, this.normals, this.texCoords);
     }
 
 }

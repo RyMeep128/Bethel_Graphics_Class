@@ -1,12 +1,12 @@
-import { RenderableObject } from "./RenderableObject.js";
-import {mat4, todegrees, toradians, translate, vec4} from "./helperfunctions.js";
-import { Cube } from "./Cube.js";
-import { Cylinder } from "./Cylinder.js";
-import * as Color from "./Color.js";
-import * as util from "./util.js";
-import * as Ambient from "./AmbientColors.js"
-import { Sphere } from "./Sphere.js";
-import {Light} from "./Light.js";
+import { RenderableObject } from "../Primitives/Base/RenderableObject.js";
+import {mat4, todegrees, toradians, translate, vec4} from "../../Utility/helperfunctions.js";
+import { Cube } from "../Primitives/Cube.js";
+import { Cylinder } from "../Primitives/Cylinder.js";
+import * as Color from "../../Utility/Color.js";
+import * as util from "../../Utility/util.js";
+import * as Ambient from "../../Utility/AmbientColors.js"
+import { Sphere } from "../Primitives/Sphere.js";
+import {Light} from "../CameraObjects/Light.js";
 
 /**
  * Renderable car composed of a body ({@link Cube}), four re-positioned wheel draws
@@ -91,7 +91,7 @@ export class Car extends RenderableObject {
      * @param {number} [roll=0] - Initial roll in degrees
      */
     constructor(
-        gl: WebGLRenderingContext,
+        gl: WebGL2RenderingContext,
         program: WebGLProgram,
         objectArr: RenderableObject[],
         width: number,
@@ -148,7 +148,6 @@ export class Car extends RenderableObject {
         this.body.setColor(Color.YELLOW);
         this.wheel.setColor(Color.SILVER);
         this.head.setColor(Color.BLACK);
-        // this.head.setGradientColor(Color.RAINBOW32);
         this.eye.setColor(Color.GHOSTWHITE);
         this.leftHeadlightObject.setColor(Color.GHOSTWHITE);
         this.rightHeadlightObject.setColor(Color.GHOSTWHITE);
@@ -268,8 +267,6 @@ export class Car extends RenderableObject {
             this.rightlight.setDirection(new vec4(-Math.sin(toradians(phi)), 0, -Math.cos(toradians(phi)), 0));
             this.leftlight.enable();
             this.rightlight.enable();
-            // this.leftlight.sendLightDataWorld(carMV);
-            // this.rightlight.sendLightDataWorld(carMV);
         }else{
             this.leftlight.disable();
             this.rightlight.disable();
@@ -374,7 +371,7 @@ export class Car extends RenderableObject {
      * @returns {mat4} Car MV matrix.
      */
     public getCarMV(camera){
-        return this.update(camera);
+        return camera.mult(this.getModelMatrix());
     }
 
     /**

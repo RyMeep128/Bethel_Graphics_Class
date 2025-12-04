@@ -1,4 +1,4 @@
-import { mat4, vec4 } from "./helperfunctions.js";
+import { mat4, vec4 } from "../../Utility/helperfunctions.js";
 
 /**
  * Represents a light source used for shading in a 3D scene.

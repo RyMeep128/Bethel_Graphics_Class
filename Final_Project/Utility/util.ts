@@ -11,7 +11,7 @@
  * @author Some comments by ChatGPT Model 5
  */
 
-import {vec4} from "./helperfunctions";
+import {vec4} from "./helperfunctions.js";
 
 /**
  * The time interval (in milliseconds) between fixed-step updates.
@@ -89,4 +89,16 @@ export const dollyMax: number = 40;
  * - Controls how quickly the camera moves forward or backward when dollying.
  */
 export const DollyAmt: number = 1;
+
+export function handleTextureLoaded(image:HTMLImageElement, texture:WebGLTexture,gl:WebGL2RenderingContext) {
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);  //disagreement over what direction Y axis goes
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    gl.generateMipmap(gl.TEXTURE_2D);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+}
 

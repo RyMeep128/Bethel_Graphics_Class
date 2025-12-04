@@ -9,7 +9,8 @@ uniform sampler2D gSpecular;  // location 1
 uniform sampler2D gNormalTex; // location 2
 uniform sampler2D gPosition;  // location 3
 
-// Your existing light uniforms
+uniform sampler2D test;
+
 uniform vec4 uLightPos[5];
 uniform vec4 uLightColor[5];
 uniform vec4 uLightAmbient[5];
@@ -35,7 +36,6 @@ void main()
 
     fColor = vec4(0.0, 0.0, 0.0, 1.0);
 
-    // This is your old loop, but now using pos/N/specData/albedo
     for (int i = 0; i < 5; i++)
     {
         vec3 L  = normalize(uLightPos[i].xyz - pos);
@@ -63,6 +63,12 @@ void main()
                 fColor += diff;
             if (uLightEnabled[i].z == 1.0)
                 fColor += spec;
+
         }
+
     }
+
+    fColor = texture(test,vUV);
+
+
 }

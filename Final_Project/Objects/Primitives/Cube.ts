@@ -1,19 +1,20 @@
-import { flatten, lookAt, mat4, rotateY, translate, vec4 } from "./helperfunctions.js";
-import { RenderableObject } from "./RenderableObject.js";
-import * as Color from "./Color.js";
+import { flatten, lookAt, mat4, rotateY, translate, vec4 } from "../../Utility/helperfunctions.js";
+import { RenderableObject } from "./Base/RenderableObject.js";
+import * as Color from "../../Utility/Color.js";
 
 /**
- * Renderable, transformable cube with per-face colors and interleaved position/color streams.
+ * Axis-aligned, renderable cube with per-face geometry, normals, and UVs.
  *
- * Geometry for each face is stored as six triangle vertices (two triangles) with a
- * separate per-vertex color array computed from a single face color. Buffer data is
- * emitted interleaved as `[position vec4][color vec4]` per vertex.
+ * Geometry:
+ * - Each face is stored as 6 vertices (2 triangles).
+ * - Positions are modeled as {@link vec4} with `w = 1.0`.
+ * - Per-face normals are modeled as {@link vec4} with `w = 0.0`.
+ * - Texture coordinates are stored as {@link vec4}, using `.x` and `.y` for (u, v).
  *
  * Rendering expectations:
- * - Projection & view are scene-wide; this class composes a model-view internally.
- * - Caller must have executed `gl.useProgram(program)` before drawing.
- * - Set face colors via the setters (or {@link setColors} / {@link setAllColor})
- *   before invoking the data upload path that consumes {@link getObjectData}.
+ * - Projection & view are handled at the scene level; this cube provides only model data.
+ * - Caller is responsible for binding VBOs and attributes using the data from {@link getObjectData}.
+ * - This class reports its `vertexCount` via the inherited {@link RenderableObject} API.
  *
  * @extends RenderableObject
  * @author
@@ -34,13 +35,18 @@ export class Cube extends RenderableObject {
     /** Bottom face vertices (6). */
     private bottomFace: vec4[] = [];
 
-    private frontNormal:vec4[] = [];
-    private backNormal:vec4[] = [];
-    private leftNormal:vec4[] = [];
-    private rightNormal:vec4[] = [];
-    private bottomNormal:vec4[] = [];
-    private topNormal:vec4[] = [];
-
+    /** Front face normals (6). */
+    private frontNormal: vec4[] = [];
+    /** Back face normals (6). */
+    private backNormal: vec4[] = [];
+    /** Left face normals (6). */
+    private leftNormal: vec4[] = [];
+    /** Right face normals (6). */
+    private rightNormal: vec4[] = [];
+    /** Bottom face normals (6). */
+    private bottomNormal: vec4[] = [];
+    /** Top face normals (6). */
+    private topNormal: vec4[] = [];
 
     /** Per-vertex texture coordinates for each face (u, v in .x, .y). */
     private frontTex: vec4[] = [];
@@ -60,21 +66,21 @@ export class Cube extends RenderableObject {
     /**
      * Constructs a cube centered at the origin in model space.
      *
-     * @param gl - WebGL rendering context
-     * @param program - Compiled & linked shader program
-     * @param objectArr - Existing renderables (used to compute draw offset)
-     * @param width - Cube width along X
-     * @param height - Cube height along Y
-     * @param depth - Cube depth along Z
-     * @param x - Initial world X translation (default: 0)
-     * @param y - Initial world Y translation (default: 0)
-     * @param z - Initial world Z translation (default: 0)
-     * @param pitch - Initial pitch in degrees (default: 0)
-     * @param yaw - Initial yaw in degrees (default: 0)
-     * @param roll - Initial roll in degrees (default: 0)
+     * @param {WebGL2RenderingContext} gl - WebGL2 rendering context.
+     * @param {WebGLProgram} program - Compiled & linked shader program.
+     * @param {RenderableObject[]} objectArr - Existing renderables (used to compute draw offset).
+     * @param {number} width - Cube width along X.
+     * @param {number} height - Cube height along Y.
+     * @param {number} depth - Cube depth along Z.
+     * @param {number} [x=0] - Initial world X translation.
+     * @param {number} [y=0] - Initial world Y translation.
+     * @param {number} [z=0] - Initial world Z translation.
+     * @param {number} [pitch=0] - Initial pitch in degrees.
+     * @param {number} [yaw=0] - Initial yaw in degrees.
+     * @param {number} [roll=0] - Initial roll in degrees.
      */
     constructor(
-        gl: WebGLRenderingContext,
+        gl: WebGL2RenderingContext,
         program: WebGLProgram,
         objectArr: RenderableObject[],
         width: number,
@@ -96,7 +102,11 @@ export class Cube extends RenderableObject {
         this.height = height;
         this.depth = depth;
 
-        // Build 6 faces as two triangles each (6 vertices per face).
+        // ─────────────────────────────────────────────
+        // Geometry + UVs
+        // ─────────────────────────────────────────────
+
+        // Front face (Z+)
         this.frontFace.push(new vec4(hx, -hy, hz, 1.0));
         this.frontFace.push(new vec4(hx, hy, hz, 1.0));
         this.frontFace.push(new vec4(-hx, hy, hz, 1.0));
@@ -114,7 +124,7 @@ export class Cube extends RenderableObject {
             new vec4(1, 0, 0, 0)  // bottom-right
         );
 
-
+        // Back face (Z-)
         this.backFace.push(new vec4(-hx, -hy, -hz, 1.0));
         this.backFace.push(new vec4(-hx, hy, -hz, 1.0));
         this.backFace.push(new vec4(hx, hy, -hz, 1.0));
@@ -132,7 +142,7 @@ export class Cube extends RenderableObject {
             new vec4(0, 0, 0, 0)  // bottom-left
         );
 
-
+        // Left face (X+)
         this.leftFace.push(new vec4(hx, hy, hz, 1.0));
         this.leftFace.push(new vec4(hx, -hy, hz, 1.0));
         this.leftFace.push(new vec4(hx, -hy, -hz, 1.0));
@@ -150,6 +160,7 @@ export class Cube extends RenderableObject {
             new vec4(1, 1, 0, 0)  // top-front
         );
 
+        // Right face (X-)
         this.rightFace.push(new vec4(-hx, hy, -hz, 1.0));
         this.rightFace.push(new vec4(-hx, -hy, -hz, 1.0));
         this.rightFace.push(new vec4(-hx, -hy, hz, 1.0));
@@ -167,6 +178,7 @@ export class Cube extends RenderableObject {
             new vec4(0, 1, 0, 0)  // top-back
         );
 
+        // Top face (Y+)
         this.topFace.push(new vec4(hx, hy, hz, 1.0));
         this.topFace.push(new vec4(hx, hy, -hz, 1.0));
         this.topFace.push(new vec4(-hx, hy, -hz, 1.0));
@@ -184,6 +196,7 @@ export class Cube extends RenderableObject {
             new vec4(1, 0, 0, 0)  // front-right
         );
 
+        // Bottom face (Y-)
         this.bottomFace.push(new vec4(hx, -hy, -hz, 1.0));
         this.bottomFace.push(new vec4(hx, -hy, hz, 1.0));
         this.bottomFace.push(new vec4(-hx, -hy, hz, 1.0));
@@ -201,46 +214,68 @@ export class Cube extends RenderableObject {
             new vec4(1, 1, 0, 0)  // back-right
         );
 
-
+        // ─────────────────────────────────────────────
+        // Normals per vertex (all faces sized as frontFace)
+        // ─────────────────────────────────────────────
         for (let i = 0; i < this.frontFace.length; i++) {
-            this.frontNormal.push( new vec4(0,0,1,0));
-            this.backNormal.push(new vec4(0,0,-1,0));
-            this.rightNormal .push(new vec4(-1,0,0,0));
-            this.leftNormal .push(new vec4(1,0,0,0));
-            this.topNormal .push(new vec4(0,1,0,0));
-            this.bottomNormal .push( new vec4(0,-1,0,0));
+            this.frontNormal.push(new vec4(0, 0, 1, 0));
+            this.backNormal.push(new vec4(0, 0, -1, 0));
+            this.rightNormal.push(new vec4(-1, 0, 0, 0));
+            this.leftNormal.push(new vec4(1, 0, 0, 0));
+            this.topNormal.push(new vec4(0, 1, 0, 0));
+            this.bottomNormal.push(new vec4(0, -1, 0, 0));
         }
-
-
-
     }
 
-
+    /**
+     * Supplies interleaved vertex data for rendering.
+     *
+     * Layout per-vertex:
+     *   [ position(vec4), normal(vec4), texCoord(vec4) ]
+     *
+     * Faces are appended in the order:
+     *   front, back, top, bottom, left, right.
+     *
+     * @override
+     * @returns {vec4[]} Interleaved
+     *   `[pos0, n0, uv0, pos1, n1, uv1, ...]` for the entire cube.
+     */
     public override getObjectData(): vec4[] {
         const tempArr: vec4[] = [];
 
-        tempArr.push(...this.loadingArrayHelper(this.frontFace,  this.frontNormal, this.frontTex));
-        tempArr.push(...this.loadingArrayHelper(this.backFace,   this.backNormal, this.backTex));
+        tempArr.push(...this.loadingArrayHelper(this.frontFace,  this.frontNormal,  this.frontTex));
+        tempArr.push(...this.loadingArrayHelper(this.backFace,   this.backNormal,   this.backTex));
         tempArr.push(...this.loadingArrayHelper(this.topFace,    this.topNormal,    this.topTex));
-        tempArr.push(...this.loadingArrayHelper(this.bottomFace, this.bottomNormal,  this.bottomTex));
-        tempArr.push(...this.loadingArrayHelper(this.leftFace,   this.leftNormal,      this.leftTex));
-        tempArr.push(...this.loadingArrayHelper(this.rightFace,  this.rightNormal,    this.rightTex));
+        tempArr.push(...this.loadingArrayHelper(this.bottomFace, this.bottomNormal, this.bottomTex));
+        tempArr.push(...this.loadingArrayHelper(this.leftFace,   this.leftNormal,   this.leftTex));
+        tempArr.push(...this.loadingArrayHelper(this.rightFace,  this.rightNormal,  this.rightTex));
 
         return tempArr;
     }
 
-
-    /** @returns Depth (Z span). */
+    /**
+     * Returns the cube's depth (Z span).
+     *
+     * @returns {number} Depth along the Z axis.
+     */
     public getDepth(): number {
         return this.depth;
     }
 
-    /** @returns Height (Y span). */
+    /**
+     * Returns the cube's height (Y span).
+     *
+     * @returns {number} Height along the Y axis.
+     */
     public getHeight(): number {
         return this.height;
     }
 
-    /** @returns Width (X span). */
+    /**
+     * Returns the cube's width (X span).
+     *
+     * @returns {number} Width along the X axis.
+     */
     public getWidth(): number {
         return this.width;
     }

@@ -1,6 +1,6 @@
-import {lookAt, mat4, rotateX, rotateY, rotateZ, toradians, vec4} from "./helperfunctions.js";
-import {RenderableObject} from "./RenderableObject.js";
-import * as util from "./util";
+import {lookAt, mat4, rotateX, rotateY, rotateZ, toradians, vec4} from "../../Utility/helperfunctions.js";
+import {RenderableObject} from "../Primitives/Base/RenderableObject.js";
+import * as util from "../../Utility/util.js";
 
 /**
  * Simple look-at camera that maintains position and target and exposes helpers
