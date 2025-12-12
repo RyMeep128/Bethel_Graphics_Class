@@ -16,7 +16,7 @@ export function modFragment() {
     uniform float k_delta;
     uniform float k_rho;
     uniform float k_theta;
-		uniform sampler2D paper;
+	uniform sampler2D paper;
     varying vec2 vUv;
 
     void main() {

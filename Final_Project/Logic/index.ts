@@ -9,6 +9,8 @@ import {Car} from "../Objects/ComplexObjects/Car.js";
 import {Camera} from "../Objects/CameraObjects/Camera.js";
 import {Sphere} from "../Objects/Primitives/Sphere.js";
 import {Light} from "../Objects/CameraObjects/Light.js";
+import {GraphicPipeline} from "./GraphicPipeline.js";
+import {RenderSettings} from "../Utility/RenderSettings.js";
 
 /**
  * @file main.ts
@@ -36,9 +38,6 @@ let canvas: HTMLCanvasElement;
 /** Geometry pass shader program (writes to G-buffer). */
 let geoShader: WebGLProgram;
 /** Lighting pass shader program (full-screen composite). */
-let lightShader: WebGLProgram;
-let diffuseShader: WebGLProgram;
-let textureShader: WebGLProgram;
 
 /** Scene graph list; draw order is array order. */
 let objectArr: RenderableObject[];
@@ -90,17 +89,11 @@ let turnHeadLeft: boolean = false;
 let turnHeadRight: boolean = false;
 
 /** Light uniform locations for the geometry shader. */
-let uLightPos: WebGLUniformLocation;
-let uLightColor: WebGLUniformLocation;
-let uAmbient: WebGLUniformLocation;
-let uDirection: WebGLUniformLocation;
-let uEnabled: WebGLUniformLocation;
-let uLightCutoff: WebGLUniformLocation;
+
 
 /** Framebuffer object for the G-buffer. */
 let gBufferFBO: WebGLFramebuffer;
-let gWaterColorBaseFBO: WebGLFramebuffer;
-let gWaterColorTextureFBO: WebGLFramebuffer;
+
 
 /** Depth texture attached to the G-buffer. */
 let gDepthTex: WebGLTexture;
@@ -115,21 +108,10 @@ let gSpecularTex: WebGLTexture;
 let gNormalTex: WebGLTexture;
 let gPositionTex: WebGLTexture;
 
+let watercolorSettings:RenderSettings;
+
 //Watercolor buffer
-let gWaterColorBaseTex: WebGLTexture;
-
-let gWaterColorTexure: WebGLTexture;
-
-let paperTexture:WebGLTexture;
-
-//and we need a main memory location to load the files into
-let paperImg:HTMLImageElement;
-
-
-
-
-/** VAO for the full-screen rectangle used in the lighting pass. */
-let screenRectangle: WebGLVertexArrayObject;
+let pipeline: GraphicPipeline;
 
 window.onload = init;
 
@@ -145,9 +127,12 @@ function init(): void {
         alert("WebGL isn't available");
     }
 
-    screenRectangle = createRectangle();
 
-    loadShaders();
+    geoShader = initFileShaders(gl, "../Shaders/GeoPass/GeoVertexShader.glsl", "../Shaders/GeoPass/GeoFragmentShader.glsl");
+    initGBuffer();
+    watercolorSettings = new RenderSettings();
+    watercolorSettings.waterColorEnabled = false;
+    pipeline = new GraphicPipeline(gl, gAlbedoTex, gSpecularTex, gNormalTex, gPositionTex,canvas, watercolorSettings);
 
     objectArr = [];
 
@@ -156,13 +141,6 @@ function init(): void {
     gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     uproj = gl.getUniformLocation(geoShader, "projection");
-
-    uLightPos = gl.getUniformLocation(geoShader, "uLightPos");
-    uLightColor = gl.getUniformLocation(geoShader, "uLightColor");
-    uAmbient = gl.getUniformLocation(geoShader, "uLightAmbient");
-    uDirection = gl.getUniformLocation(geoShader, "uLightDirection");
-    uEnabled = gl.getUniformLocation(geoShader, "uLightEnabled");
-    uLightCutoff = gl.getUniformLocation(geoShader, "uLightCutoff");
 
     setupKeyboardMouseBindings();
     initView();
@@ -174,54 +152,6 @@ function init(): void {
     window.setInterval(update, util.FramesPerMS);
 }
 
-function loadShaders() {
-    geoShader = initFileShaders(gl, "../Shaders/GeoPass/GeoVertexShader.glsl", "../Shaders/GeoPass/GeoFragmentShader.glsl");
-    lightShader = initFileShaders(gl, "../Shaders/LightPass/LightVertexShader.glsl", "../Shaders/LightPass/LightFragmentShader.glsl");
-    diffuseShader = initFileShaders(gl, "../Shaders/DiffusePass/DiffuseVertexShader.glsl", "../Shaders/DiffusePass/DiffuseFragmentShader.glsl");
-    textureShader =initFileShaders(gl, "../Shaders/TexturePass/TextureVertexShader.glsl", "../Shaders/TexturePass/TextureFragmentShader.glsl");
-    initGBuffer();
-    initWatercolorBaseBuffer();
-    initWatercolorTextureBuffer();
-}
-
-/**
- * Creates a full-screen rectangle VAO for the lighting pass.
- *
- * Layout per-vertex:
- * - `aPosition` (location 0): vec2 clip-space position
- * - `aTexCoord` (location 1): vec2 UV in [0,1]
- *
- * @returns {WebGLVertexArrayObject} The configured VAO handle.
- */
-function createRectangle(): WebGLVertexArrayObject {
-    const returnObject = gl.createVertexArray();
-    gl.bindVertexArray(returnObject);
-
-    const quadData = new Float32Array([
-        // x,  y,   u, v
-        -1, -1, 0, 0,
-        1, -1, 1, 0,
-        -1, 1, 0, 1,
-        1, 1, 1, 1,
-    ]);
-
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, quadData, gl.STATIC_DRAW);
-
-    // aPosition → location 0
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 4 * 4, 0);
-
-    // aTexCoord → location 1
-    gl.enableVertexAttribArray(1);
-    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 4 * 4, 2 * 4);
-
-    gl.bindVertexArray(null);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-    return returnObject;
-}
 
 /**
  * Registers keyboard listeners for movement and rotation controls.
@@ -239,6 +169,10 @@ function setupKeyboardMouseBindings(): void {
  */
 function keyDown(event: KeyboardEvent): void {
     switch (event.key) {
+        case "p":
+            watercolorSettings.waterColorEnabled = !watercolorSettings.waterColorEnabled;
+            console.log("watercolorMode toggled: ", watercolorSettings.waterColorEnabled);
+            break;
         case "ArrowUp":
             movingForwardBool = true;
             movingBackwardBool = false;
@@ -493,110 +427,6 @@ function setupGBufferTexture(tex: WebGLTexture, width: number, height: number): 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
 
-/**
- * Initializes the watercolor base buffer.
- * This is a single RGBA16F texture that stores the
- * "painted" base color from the DiffusePass.
- *
- * @returns {void}
- */
-function initWatercolorBaseBuffer(): void {
-    gWaterColorBaseTex = gl.createTexture() as WebGLTexture;
-    gl.bindTexture(gl.TEXTURE_2D, gWaterColorBaseTex);
-
-    // Same size as G-buffer, RGBA16F so we can keep nice gradients
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA16F,
-        gTexWidth,
-        gTexHeight,
-        0,
-        gl.RGBA,
-        gl.FLOAT,
-        null
-    );
-
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    // Create FBO and attach the watercolor base as COLOR_ATTACHMENT0
-    gWaterColorBaseFBO = gl.createFramebuffer() as WebGLFramebuffer;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, gWaterColorBaseFBO);
-
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        gWaterColorBaseTex,
-        0
-    );
-
-    // We only draw to COLOR_ATTACHMENT0 in this FBO
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-}
-
-/**
- * Initializes the watercolor base buffer.
- * This is a single RGBA16F texture that stores the
- * "painted" base color from the DiffusePass.
- *
- * @returns {void}
- */
-function initWatercolorTextureBuffer(): void {
-    gWaterColorTexure = gl.createTexture() as WebGLTexture;
-    gl.bindTexture(gl.TEXTURE_2D, gWaterColorTexure);
-
-    // Same size as G-buffer, RGBA16F so we can keep nice gradients
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA16F,
-        gTexWidth,
-        gTexHeight,
-        0,
-        gl.RGBA,
-        gl.FLOAT,
-        null
-    );
-
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    // Create FBO and attach the watercolor base as COLOR_ATTACHMENT0
-    gWaterColorTextureFBO = gl.createFramebuffer() as WebGLFramebuffer;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, gWaterColorTextureFBO);
-
-    gl.framebufferTexture2D(
-        gl.FRAMEBUFFER,
-        gl.COLOR_ATTACHMENT0,
-        gl.TEXTURE_2D,
-        gWaterColorTexure,
-        0
-    );
-
-    paperTexture = gl.createTexture();
-    paperImg = new Image();
-    paperImg.onload = function() { util.handleTextureLoaded(paperImg, paperTexture,gl); };
-    paperImg.src = '../Assets/paper.jpg';
-
-    // We only draw to COLOR_ATTACHMENT0 in this FBO
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-}
-
-
-
 
 /**
  * Initializes the G-buffer framebuffer and all attached textures
@@ -698,6 +528,7 @@ let lightingEnabled: boolean = true;
  * @returns {void}
  */
 function render(): void {
+    pipeline.updateCamera(getCamera());
     // 1) Populate G-buffer: gAlbedoTex, gSpecularTex, gNormalTex, gPositionTex, gDepthTex
     GeomertyPass();
 
@@ -706,260 +537,54 @@ function render(): void {
     //    - ShadowPass: deepen dark areas
     //    - MidtonePass: optional toon-ish midtone layer
     if (diffuseEnabled) {
-        DiffusePass();    // uses G-buffer, writes watercolorBaseTex
+        pipeline.DiffusePass();    // uses G-buffer, writes watercolorBaseTex
     }
 
+
     if (shadowEnabled) {
-        ShadowPass();     // uses watercolorBaseTex (+ G-buffer), writes watercolorShadowTex
+        pipeline.ShadowPass();     // uses watercolorBaseTex (+ G-buffer), writes watercolorShadowTex
     }
 
     if (midtoneEnabled) {
-        MidtonePass();    // uses watercolorShadowTex, writes watercolorMidtoneTex
+        pipeline.MidtonePass();    // uses watercolorShadowTex, writes watercolorMidtoneTex
     }
+    pipeline.SpecularPass()
+    pipeline.SpecularAddPass()
+    pipeline.CMYKBlendingPass()
+    pipeline.BlurPass()
+    pipeline.StepPass()
+
+
+
+    pipeline.EdgeDarkenPass()
+    pipeline.EdgeModulationPass()
 
     // 3) Apply paper color/pattern to the painted result
     if (textureEnabled) {
-        TexturePass();    // uses watercolorMidtoneTex + paperTex, writes watercolorTexturedTex
+        // pipeline.TexturePass();    // uses watercolorMidtoneTex + paperTex, writes watercolorTexturedTex
     }
 
     // 4) Blur to simulate pigment bleeding on wet paper
     if (blurEnabled) {
-        BlurPass();       // uses watercolorTexturedTex, writes watercolorBlurTexB
+        // pipeline.BlurPass();       // uses watercolorTexturedTex, writes watercolorBlurTexB
     }
 
     // 5) Modulate alpha with paper grain (pigment pooling)
     if (edgeModuleEnabled) {
-        EdgeModulationPass(); // uses watercolorBlurTexB + paperTex, writes watercolorEdgesTex
+        // pipeline.EdgeModulationPass(); // uses watercolorBlurTexB + paperTex, writes watercolorEdgesTex
     }
 
     // 6) Darken / thicken edges for that inked-outline feel
     if (edgeDarkenEnabled) {
-        EdgeDarkenPass(); // uses watercolorEdgesTex (+ intensity/edge info), writes watercolorFinalTex
+        // pipeline.EdgeDarkenPass(); // uses watercolorEdgesTex (+ intensity/edge info), writes watercolorFinalTex
     }
 
     // 7) Final composite:
     //    - In watercolor mode: sample watercolorFinalTex and draw to the screen.
     //    - In normal deferred mode: sample G-buffer and do standard lighting.
     if (lightingEnabled) {
-        LightingPass();
+        pipeline.LightingPass();
     }
-}
-
-
-function BlurPass(): void {
-}
-
-function EdgeDarkenPass(): void {
-}
-
-function EdgeModulationPass(): void {
-}
-
-function DiffusePass(): void {
-
-    gl.useProgram(diffuseShader);
-
-    // Render into the watercolor base texture
-    gl.bindFramebuffer(gl.FRAMEBUFFER, gWaterColorBaseFBO);
-    gl.viewport(0, 0, gTexWidth, gTexHeight);
-
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Bind G-buffer textures as inputs (samplers)
-    // Albedo
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, gAlbedoTex);
-    gl.uniform1i(gl.getUniformLocation(diffuseShader, "gAlbedo"), 0);
-
-    // Specular
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, gSpecularTex);
-    gl.uniform1i(gl.getUniformLocation(diffuseShader, "gSpecular"), 1);
-
-    // Normal
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, gNormalTex);
-    gl.uniform1i(gl.getUniformLocation(diffuseShader, "gNormalTex"), 2);
-
-    // Position
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, gPositionTex);
-    gl.uniform1i(gl.getUniformLocation(diffuseShader, "gPosition"), 3);
-
-    uploadLightsForProgram(diffuseShader);
-
-    // Set palette colors as uniforms (paper-ish warm tones)
-    const color0 = gl.getUniformLocation(diffuseShader, "color0");
-    const color1 = gl.getUniformLocation(diffuseShader, "color1");
-
-    gl.uniform4f(color0, 0.92, 0.88, 0.78, 1.0);
-
-    // darker warm pigment
-    gl.uniform4f(color1, 0.45, 0.28, 0.18, 1.0);
-
-    drawRectangle();
-}
-
-
-function MidtonePass(): void {
-}
-
-function TexturePass(): void {
-
-    gl.useProgram(textureShader);
-
-    // Render into the watercolor base texture
-    gl.bindFramebuffer(gl.FRAMEBUFFER, gWaterColorTextureFBO);
-    gl.viewport(0, 0, gTexWidth, gTexHeight);
-
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // Bind G-buffer textures as inputs (samplers)
-    // Albedo
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, gWaterColorBaseTex);
-    gl.uniform1i(gl.getUniformLocation(textureShader, "waterColorMidtoneTex"), 0);
-
-    // Specular
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, paperTexture);
-    gl.uniform1i(gl.getUniformLocation(textureShader, "paperTex"), 1);
-
-    drawRectangle();
-}
-
-
-function ShadowPass(): void {
-}
-
-
-/**
- * Performs the lighting pass for deferred shading.
- *
- * - Binds the default framebuffer (canvas).
- * - Samples from G-buffer textures (albedo, specular, normal, position).
- * - Uploads light data to the lighting shader.
- * - Renders a full-screen quad that computes final shaded color per-fragment.
- *
- * Depth testing is disabled for this pass.
- *
- * @returns {void}
- */
-function LightingPass(): void {
-    gl.useProgram(lightShader);
-    gl.disable(gl.BLEND);
-
-    // Render to the default framebuffer (the canvas)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    gl.disable(gl.DEPTH_TEST);
-
-    // Albedo
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, gAlbedoTex);
-    gl.uniform1i(gl.getUniformLocation(lightShader, "gAlbedo"), 0);
-
-    // Specular
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, gSpecularTex);
-    gl.uniform1i(gl.getUniformLocation(lightShader, "gSpecular"), 1);
-
-    // Normal
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, gNormalTex);
-    gl.uniform1i(gl.getUniformLocation(lightShader, "gNormalTex"), 2);
-
-    // Position
-    gl.activeTexture(gl.TEXTURE3);
-    gl.bindTexture(gl.TEXTURE_2D, gPositionTex);
-    gl.uniform1i(gl.getUniformLocation(lightShader, "gPosition"), 3);
-
-    //Testing
-    gl.activeTexture(gl.TEXTURE4);
-    gl.bindTexture(gl.TEXTURE_2D, gWaterColorTexure);
-    gl.uniform1i(gl.getUniformLocation(lightShader, "test"), 4);
-
-    // --- Upload light uniforms for the lighting shader ---
-    uploadLightsForProgram(lightShader);
-
-    // --- Draw full-screen quad ---
-    drawRectangle();
-
-    gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.BLEND);
-}
-
-/**
- * Uploads current light data (sun + car lights) to a given shader program.
- *
- * Populates:
- * - `uLightColor`   (vec4[5])
- * - `uLightAmbient` (vec4[5])
- * - `uLightPos`     (vec4[5])  in view space
- * - `uLightDirection` (vec4[5]) in view space
- * - `uLightEnabled` (vec4[5])  as on/off flags
- * - `uLightCutoff`  (float[5]) for spotlights
- *
- * Positions and directions are computed in the current camera's view space.
- *
- * @param {WebGLProgram} program - The shader program to receive the uniforms.
- * @returns {void}
- */
-function uploadLightsForProgram(program: WebGLProgram): void {
-    const lights: Light[] = [];
-    lights.push(sun);
-    lights.push(...car.getLightData());
-
-    const ambients: vec4[] = [];
-    const colors: vec4[] = [];
-    const directions: vec4[] = [];
-    const positions: vec4[] = [];
-    const enabled: vec4[] = [];
-    const cutOffAngles: number[] = [];
-
-    const cameraMV = getCamera().getCameraMV();
-
-    for (let i = 0; i < 5; i++) {
-        ambients.push(lights[i].getAmbient());
-        colors.push(lights[i].getColor());
-
-        if (lights[i] !== sun) {
-            directions.push(lights[i].getDirection(car.getCarMV(cameraMV)));
-            positions.push(lights[i].getPosition(car.getCarMV(cameraMV)));
-        } else {
-            directions.push(lights[i].getDirection(cameraMV));
-            positions.push(lights[i].getPosition(cameraMV));
-        }
-
-        enabled.push(lights[i].getEnabled());
-        cutOffAngles.push(lights[i].getCutOffAngle());
-    }
-
-    const uLightColorLoc = gl.getUniformLocation(program, "uLightColor");
-    const uAmbientLoc = gl.getUniformLocation(program, "uLightAmbient");
-    const uLightPosLoc = gl.getUniformLocation(program, "uLightPos");
-    const uDirectionLoc = gl.getUniformLocation(program, "uLightDirection");
-    const uEnabledLoc = gl.getUniformLocation(program, "uLightEnabled");
-    const uLightCutoffLoc = gl.getUniformLocation(program, "uLightCutoff");
-
-    if (uLightColorLoc)
-        gl.uniform4fv(uLightColorLoc, flatten(colors));
-    if (uAmbientLoc)
-        gl.uniform4fv(uAmbientLoc, flatten(ambients));
-    if (uLightPosLoc)
-        gl.uniform4fv(uLightPosLoc, flatten(positions));
-    if (uDirectionLoc)
-        gl.uniform4fv(uDirectionLoc, flatten(directions));
-    if (uEnabledLoc)
-        gl.uniform4fv(uEnabledLoc, flatten(enabled));
-    if (uLightCutoffLoc)
-        gl.uniform1fv(uLightCutoffLoc, cutOffAngles);
 }
 
 /**
@@ -1007,7 +632,6 @@ function GeomertyPass(): void {
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // IMPORTANT: unbind before lighting
 }
-
 
 
 /**
@@ -1187,4 +811,56 @@ function bufferData(): void {
     const vTex = gl.getAttribLocation(geoShader, "vTex");
     gl.vertexAttribPointer(vTex, 4, gl.FLOAT, false, 48, 32);
     gl.enableVertexAttribArray(vTex);
+}
+
+
+export function uploadLightsForProgram(program: WebGLProgram): void {
+    const lights: Light[] = [];
+    lights.push(sun);
+    lights.push(...car.getLightData());
+
+    const ambients: vec4[] = [];
+    const colors: vec4[] = [];
+    const directions: vec4[] = [];
+    const positions: vec4[] = [];
+    const enabled: vec4[] = [];
+    const cutOffAngles: number[] = [];
+
+    const cameraMV = getCamera().getCameraMV();
+
+    for (let i = 0; i < 5; i++) {
+        ambients.push(lights[i].getAmbient());
+        colors.push(lights[i].getColor());
+
+        if (lights[i] !== sun) {
+            directions.push(lights[i].getDirection(car.getCarMV(cameraMV)));
+            positions.push(lights[i].getPosition(car.getCarMV(cameraMV)));
+        } else {
+            directions.push(lights[i].getDirection(cameraMV));
+            positions.push(lights[i].getPosition(cameraMV));
+        }
+
+        enabled.push(lights[i].getEnabled());
+        cutOffAngles.push(lights[i].getCutOffAngle());
+    }
+
+    const uLightColorLoc = gl.getUniformLocation(program, "uLightColor");
+    const uAmbientLoc = gl.getUniformLocation(program, "uLightAmbient");
+    const uLightPosLoc =gl.getUniformLocation(program, "uLightPos");
+    const uDirectionLoc = gl.getUniformLocation(program, "uLightDirection");
+    const uEnabledLoc = gl.getUniformLocation(program, "uLightEnabled");
+    const uLightCutoffLoc = gl.getUniformLocation(program, "uLightCutoff");
+
+    if (uLightColorLoc)
+        gl.uniform4fv(uLightColorLoc, flatten(colors));
+    if (uAmbientLoc)
+        gl.uniform4fv(uAmbientLoc, flatten(ambients));
+    if (uLightPosLoc)
+       gl.uniform4fv(uLightPosLoc, flatten(positions));
+    if (uDirectionLoc)
+        gl.uniform4fv(uDirectionLoc, flatten(directions));
+    if (uEnabledLoc)
+        gl.uniform4fv(uEnabledLoc, flatten(enabled));
+    if (uLightCutoffLoc)
+        gl.uniform1fv(uLightCutoffLoc, cutOffAngles);
 }

@@ -2,91 +2,109 @@
 precision mediump float;
 precision lowp int;
 
-//Text cords
 in vec2 texCords;
 
+// G-buffer inputs
+uniform sampler2D gAlbedo;       // location 0
+uniform sampler2D gSpecular;     // location 1  (unused here but available)
+uniform sampler2D gNormalTex;    // location 2
+uniform sampler2D gPosition;     // location 3
 
-//Inputs
-uniform sampler2D gAlbedo;    // location 0
-uniform sampler2D gSpecular;  // location 1 //Not being used here
-uniform sampler2D gNormalTex; // location 2
-uniform sampler2D gPosition;  // location 3
-
-
-//Light uniforms
+// Scene lights
 uniform vec4 uLightPos[5];
-uniform vec4 uLightColor[5];
-uniform vec4 uLightAmbient[5];
+uniform vec4 uLightColor[5];     // diffuse color/intensity
+uniform vec4 uLightAmbient[5];   // ambient color
+uniform vec4 uLightEnabled[5];   // .x ambient, .y diffuse, .z specular
 uniform vec4 uLightDirection[5];
-uniform vec4 uLightEnabled[5]; // .x ambient, .y diffuse, .z specular
 uniform float uLightCutoff[5];
 
-//Color Uniforms
-uniform vec4 color0;
-uniform vec4 color1;
+// === Missing uniforms (NOT WIRED YET — remember to supply them) ===
+uniform sampler2D paperTex;
+uniform vec3 cameraPos;
+uniform float k_ambient;
+uniform float k_diffuse;
+uniform float k_specular;
+uniform float p;
+// ===================================================================
 
-
-
-//output
+// Output: the watercolor diffuse base layer
 layout(location = 0) out vec4 watercolorBase;
 
 void main() {
 
-    vec4 albedo   = texture(gAlbedo,    texCords);
-    vec4 specData = texture(gSpecular,  texCords); // Not using
-    vec4 normData = texture(gNormalTex, texCords);
-    vec4 posData  = texture(gPosition,  texCords);
+    // Extract G-buffer data
+    vec3 albedo  = texture(gAlbedo,    texCords).rgb;
+    vec3 normal  = normalize(texture(gNormalTex, texCords).xyz);
+    vec3 position = texture(gPosition, texCords).xyz;
 
-    vec3 N = normalize(normData).xyz;
+    // Paper color (screen-space UV)
+    vec3 paperColor = texture(paperTex, texCords).rgb;
 
-    vec3 specColor = specData.rgb;
-    float specExp  = specData.a;
+    // Final accumulated watercolor color
+    vec3 finalColor = vec3(0.0);
 
-    float intensity = 0.0;
+    // Loop over all 5 lights
+    for (int i = 0; i < 5; ++i) {
 
+        // Skip disabled lights
+        if (uLightEnabled[i].y <= 0.0) { continue; }  // diffuse flag
 
-    for (int i = 0; i < 5; i++)
-    {
-        vec3 L  = normalize(uLightPos[i].xyz - posData.xyz);
+        vec3 L = normalize(uLightPos[i].xyz - position.xyz);
         vec3 LD = normalize(uLightDirection[i].xyz);
-        vec3 V  = normalize(-posData.xyz);      // viewer at origin in eye-space
-        vec3 R  = reflect(-L, N);
+        vec3 N = normalize((normal).xyz);
+        vec3 V = normalize(-position.xyz);
 
-        // Spotlight test
-        if (dot(LD, L) >= uLightCutoff[i])
-        {
-            vec4 amb  = albedo * uLightAmbient[i];
-            vec4 diff = max(dot(L, N), 0.0) * albedo * uLightColor[i];
-            vec4 spec = pow(max(dot(R, V), 0.0), specExp) * vec4(specColor, 1.0) * uLightColor[i];
+        if( (dot(LD,L) >= uLightCutoff[i]) ){
 
-            if (dot(L, N) < 0.0)
-            {
-                spec = vec4(0.0, 0.0, 0.0, 1.0);
+            vec3 Ldir = uLightPos[i].xyz;
+            float NdotL = dot(normal, Ldir);
+
+            // === 2) Actual radius attenuation (correct, preserved from original) ===
+            float r = length(uLightPos[i].xyz - position);
+            float inv_r2 = 1.0 / max(r * r, 0.0001);
+
+            vec3 h = normalize(cameraPos + uLightPos[i].xyz);
+
+            // === 4) Stylized specular region (tiny highlight then discard) ===
+            float specularSize = (NdotL > 0.95) ? 1.0 : 0.0;
+
+            float rawSpec = k_specular * inv_r2 * pow(max(dot(normal, h), 0.0), p);
+
+            float stylizedSpec = smoothstep(0.01, 0.03, rawSpec) * 0.6;
+            stylizedSpec *= specularSize;
+
+            // Discard watercolor in specular highlight zones
+            if (stylizedSpec > 0.0) {
+                discard;
             }
 
-            // Channel toggles, same as before
-            if (uLightEnabled[i].x == 1.0)
-            intensity += dot(amb.rgb, vec3(0.299, 0.587, 0.114));;
-            if (uLightEnabled[i].y == 1.0)
-            intensity += dot(diff.rgb, vec3(0.299, 0.587, 0.114));
-            if (uLightEnabled[i].z == 1.0)
-            intensity += dot(spec.rgb, vec3(0.299, 0.587, 0.114));
+            // === 5) Ambient (using Option A: your scene's light ambient color) ===
+            vec3 ambient = k_ambient * uLightAmbient[i].rgb;
 
+            // === 6) Diffuse using your scene's light color ===
+            float diffuseStrength = max(NdotL, 0.0);
+            vec3 diffuse = k_diffuse * uLightColor[i].rgb * diffuseStrength * inv_r2;
+
+            // === 7) Per-light contribution to watercolor color ===
+            vec3 lightContribution =
+            paperColor *// paper modulation
+            (ambient + diffuse) *// lighting
+            albedo;// surface base color
+
+            finalColor += lightContribution;
         }
-
     }
 
-    float magicNumber = 0.9;
+    // === 8) Alpha channel = pigment coverage (exact original formula) ===
+    float alpha = (1.0 - (finalColor.r * 0.8 +
+    finalColor.g * 0.1 +
+    finalColor.b * 0.7)) * 0.9;
 
-    float t = clamp(intensity * magicNumber, 0.0, 1.0);
-
-    vec4 paletteRGB = mix(color0, color1, t);
-
-    watercolorBase.rgb = paletteRGB.rgb;
-//    watercolorBase.a = t; //This line breaks everything why???
-    watercolorBase = vec4(paletteRGB.rgb, 1.0); //setting it to 1.0 for now
-//
-//    watercolorBase = vec4(t, t, t, 1.0);
-
+    watercolorBase = vec4(finalColor, alpha);
 }
 
+
+
+vec4 shadowPass(){
+    return vec4(0.0);
+}

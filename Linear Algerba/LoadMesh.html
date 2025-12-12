@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Duck</title>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">#version 300 es
+    precision mediump float;
+    precision lowp int;
+
+    uniform mat4 mv;
+    uniform mat4 proj;
+
+    in vec4 vPosition;
+    in vec4 vNormal;
+
+    // Match your “ov*” outputs
+    out vec4 ovAmbientDiffuseColor;
+    out vec4 ovNormal;
+    out vec4 ovSpecularColor;
+    out float ovSpecularExponent;
+    out vec4 oveyepos;
+
+    void main()
+    {
+        // Hardcoded yellow duck material
+        ovAmbientDiffuseColor = vec4(1.0, 0.85, 0.0, 1.0); // ambient+diffuse
+        ovNormal              = vNormal;                   // still in object space
+        ovSpecularColor       = vec4(1.0, 1.0, 1.0, 1.0);  // white specular
+        ovSpecularExponent    = 32.0;                      // shininess
+
+        // Eye-space position
+        oveyepos = mv * vPosition;
+
+        // Clip-space position
+        gl_Position = proj * oveyepos;
+    }
+    </script>
+
+
+
+    <script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
+    precision mediump float;
+    precision lowp int;
+
+    in vec4 ovAmbientDiffuseColor;
+    in vec4 ovNormal;
+    in vec4 ovSpecularColor;
+    in float ovSpecularExponent;
+    in vec4 oveyepos;
+
+    uniform mat4 mv; // same mv as in vertex shader
+
+    out vec4 fColor;
+
+    void main() {
+        // Start at black, add contributions
+        fColor = vec4(0.0, 0.0, 0.0, 1.0);
+
+        // ===== Single hardcoded light (no arrays) =====
+
+        // Light in *eye space*
+        vec3 lightPos     = vec3(5.0, 5.0, 5.0);
+        vec4 lightColor   = vec4(1.0, 1.0, 1.0, 1.0);      // white
+        vec4 lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);      // ambient term
+
+        // Directions
+        vec3 L = normalize(lightPos - oveyepos.xyz);       // light → fragment (eye space)
+        vec3 N = normalize((mv * ovNormal).xyz);           // normal → eye space
+        vec3 V = normalize(-oveyepos.xyz);                 // view direction (eye at origin)
+        vec3 R = reflect(-L, N);                           // reflection of -L around N
+
+        // Ambient
+        vec4 amb = ovAmbientDiffuseColor * lightAmbient;
+
+        // Diffuse
+        float diffTerm = max(dot(L, N), 0.0);
+        vec4 diff = diffTerm * ovAmbientDiffuseColor * lightColor;
+
+        // Specular
+        float specTerm = pow(max(dot(R, V), 0.0), ovSpecularExponent);
+        vec4 spec = specTerm * ovSpecularColor * lightColor;
+
+        // If light is behind the surface, kill specular
+        if (dot(L, N) < 0.0) {
+            spec = vec4(0.0, 0.0, 0.0, 1.0);
+        }
+
+        // Sum all contributions
+        fColor = amb + diff + spec;
+    }
+    </script>
+
+
+
+    <script type = "module" src = "meshfunctions.js"></script>
+</head>
+<body>
+
+<canvas id = "gl-canvas" width="1280" height="768">
+    Sorry; you web browser doesn't support HTML5's canvas element.
+</canvas>
+</body>
+</html>
