@@ -3,8 +3,8 @@ precision mediump float;
 precision lowp int;
 
 
-in vec2 aPosition;   // e.g. (-1,-1), (1,-1), (1,1), (-1,1)
-in vec2 aTexCoord;   // (0,0)-(1,1)
+layout(location=0) in vec2 aPosition;   // e.g. (-1,-1), (1,-1), (1,1), (-1,1)
+layout(location=1) in vec2 aTexCoord;   // (0,0)-(1,1)
 
 out vec2 texCords;
 
