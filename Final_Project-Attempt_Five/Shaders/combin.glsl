@@ -22,9 +22,10 @@ void main() {
 
     // Suggested order: shadows laid first, then midtones, then diffuse wash last
     // (so highlights/holes from diffuse survive)
-    vec4 res = d;
+    vec4 res = vec4(1.0);
     res = over(s, res);
     res = over(m, res);
+
 
     result = res;
 

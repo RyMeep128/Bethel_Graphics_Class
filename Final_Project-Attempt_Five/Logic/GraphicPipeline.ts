@@ -560,7 +560,7 @@ export class GraphicPipeline {
         this.outPut(this.gHBlurFBO);
         this.clear()
 
-        this.uploadPrevious(shader, this.gAddDiffuseTex)
+        this.uploadPrevious(shader, this.gCombineTex)
 
         this.uploadMagicalConstants(shader);
 
@@ -716,7 +716,7 @@ export class GraphicPipeline {
             );
 
             this.gl.activeTexture(this.gl.TEXTURE7);
-            this.gl.bindTexture(this.gl.TEXTURE_2D, this.gTestTex);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.gCombineTex);
             this.gl.uniform1i(
                 this.gl.getUniformLocation(this.lightShader, "test"),
                 7
@@ -842,7 +842,7 @@ export class GraphicPipeline {
     }
 
     private clear(): void {
-        this.gl.clearColor(0, 0, 0, 0);
+        this.gl.clearColor(1, 1, 1, 1);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     }
 

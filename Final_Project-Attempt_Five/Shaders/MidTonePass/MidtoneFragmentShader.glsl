@@ -41,16 +41,20 @@ void main() {
     float Lm = maxLightAmount(N, P);
 
     // Keep only a mid band
-    float shadowCut = 0.35;     // same as shadow pass
-    float lightCut  = 0.80;     // highlights above this are excluded
+    float shadowCut = 0.0;     // same as shadow pass
+    float lightCut  = 0.99;     // highlights above this are excluded
     if (Lm < shadowCut) discard;
-    if (Lm > lightCut) discard;
+//    if (Lm > lightCut) discard;
 
     vec3 color = paper * albedo;
 
     // Stronger alpha closer to shadowCut, weaker closer to lightCut
     float t = smoothstep(lightCut, shadowCut, Lm);
     float alpha = clamp(0.20 + 0.60 * t, 0.0, 1.0);
+
+    if (Lm > lightCut) {
+        alpha = 0.0;
+    };
 
     watercolorMidtoneTex = vec4(color, alpha);
 }
