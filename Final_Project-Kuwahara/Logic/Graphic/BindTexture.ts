@@ -61,9 +61,6 @@ export class BindTexture {
      * @param uniformLoc - Sampler uniform location (from `getUniformLocation`).
      */
     public bind(texture: WebGLTexture, uniformLoc: WebGLUniformLocation): void {
-        // If the shader doesn't have this uniform (or it was optimized out), do nothing.
-        if (!uniformLoc) return;
-
         // Allocate the next texture unit index, then advance for the next bind().
         const hose = this.nextHose++;
 

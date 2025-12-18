@@ -28,10 +28,8 @@ export class UniformMap {
     /**
      * Cache of uniform locations keyed by uniform name.
      *
-     * Values may be `null` (uniform missing/optimized out). That `null` is intentionally cached
-     * so we don't repeatedly query the driver for uniforms that aren't present.
      */
-    private map: Map<string, WebGLUniformLocation | null> = new Map<string, WebGLUniformLocation | null>();
+    private map: Map<string, WebGLUniformLocation> = new Map<string, WebGLUniformLocation>();
 
     /**
      * Creates a new uniform-location cache for a specific shader program.
@@ -49,7 +47,7 @@ export class UniformMap {
      *
      * Behavior:
      * - First call for a given `name` queries `gl.getUniformLocation(...)` and stores the result.
-     * - Subsequent calls return the cached location (including cached `null`).
+     * - Subsequent calls return the cached location.
      *
      * @param name - GLSL uniform name to resolve.
      * @returns The uniform location, or `null` if not found / optimized out.

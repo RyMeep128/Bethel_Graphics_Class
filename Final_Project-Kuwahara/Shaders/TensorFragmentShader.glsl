@@ -42,8 +42,7 @@ precision lowp int;
 in vec2 texCords;
 
 /**
- * Screen size (xy = width, height). Used to compute texel-sized UV offsets.
- * zw are unused here, but you may pass (1/width, 1/height) elsewhere in your pipeline.
+ * Screen size (xy = width, height) (zw = 1/width, 1/height). Used to compute texel-sized UV offsets.
  */
 uniform vec4 screenSize;
 
@@ -92,11 +91,6 @@ const mat3 Gx = mat3(
 -1,  0,  1
 );
 
-/**
- * Returns UV offset for a single pixel step.
- * Example: texCords + vec2(1,0)*texel() samples one pixel to the right.
- */
-vec2 texel() { return 1.0 / screenSize.xy; }
 
 /**
  * Computes the Sobel gradient in one direction using the Gy kernel.
@@ -163,7 +157,7 @@ vec3 t02, vec3 t12, vec3 t22
  * Tensor derived from albedo texture (RGB).
  */
 vec4 tensorAlbedo(vec2 uv) {
-    vec2 t = texel();
+    vec2 t = screenSize.zw;
 
     vec3 a00 = texture(gAlbedo, uv + vec2(-1, -1)*t).rgb;
     vec3 a01 = texture(gAlbedo, uv + vec2(-1,  0)*t).rgb;
@@ -185,7 +179,7 @@ vec4 tensorAlbedo(vec2 uv) {
  * Normals are normalized per sample to reduce interpolation/storage drift.
  */
 vec4 tensorNormal(vec2 uv) {
-    vec2 t = texel();
+    vec2 t = screenSize.zw;
 
     vec3 n00 = normalize(texture(gNormalTex, uv + vec2(-1, -1)*t).xyz);
     vec3 n01 = normalize(texture(gNormalTex, uv + vec2(-1,  0)*t).xyz);
@@ -205,30 +199,22 @@ vec4 tensorNormal(vec2 uv) {
 /**
  * Tensor derived from depth (using gPosition.z).
  *
- * You interpret depth as:
- *   c = -gPosition.z  (positive forward distance in eye-space if -Z is forward)
- * Then normalize neighbor depths by invC to reduce scale with distance:
- *   d_ij = (-posZ_ij) * (1/c)
  *
- * This makes the center depth become ~1.0 and neighbors become relative depth ratios.
  */
 vec4 tensorDepth(vec2 uv) {
-    vec2 t = texel();
+    vec2 t = screenSize.zw;
 
-    float c = -texture(gPosition, uv).z;
-    float invC = 1.0 / c;
+    float d00 = (texture(gPosition, uv + vec2(-1, -1)*t).z);
+    float d01 = (texture(gPosition, uv + vec2(-1,  0)*t).z);
+    float d02 = (texture(gPosition, uv + vec2(-1,  1)*t).z);
 
-    float d00 = (-texture(gPosition, uv + vec2(-1, -1)*t).z) * invC;
-    float d01 = (-texture(gPosition, uv + vec2(-1,  0)*t).z) * invC;
-    float d02 = (-texture(gPosition, uv + vec2(-1,  1)*t).z) * invC;
+    float d10 = (texture(gPosition, uv + vec2( 0, -1)*t).z);
+    float d11 = (texture(gPosition, uv + vec2( 0,  0)*t).z);
+    float d12 = (texture(gPosition, uv + vec2( 0,  1)*t).z);
 
-    float d10 = (-texture(gPosition, uv + vec2( 0, -1)*t).z) * invC;
-    float d11 =  c * invC; // center becomes 1.0
-    float d12 = (-texture(gPosition, uv + vec2( 0,  1)*t).z) * invC;
-
-    float d20 = (-texture(gPosition, uv + vec2( 1, -1)*t).z) * invC;
-    float d21 = (-texture(gPosition, uv + vec2( 1,  0)*t).z) * invC;
-    float d22 = (-texture(gPosition, uv + vec2( 1,  1)*t).z) * invC;
+    float d20 = (texture(gPosition, uv + vec2( 1, -1)*t).z);
+    float d21 = (texture(gPosition, uv + vec2( 1,  0)*t).z);
+    float d22 = (texture(gPosition, uv + vec2( 1,  1)*t).z);
 
     // Replicate scalar depth into vec3 so we can reuse tensorFromSamples.
     return tensorFromSamples(
@@ -243,7 +229,7 @@ vec4 tensorDepth(vec2 uv) {
  * (Your gSpecular also packs exponent in alpha in other passes, but you ignore alpha here.)
  */
 vec4 tensorSpecular(vec2 uv) {
-    vec2 t = texel();
+    vec2 t = screenSize.zw;
 
     vec3 s00 = texture(gSpecular, uv + vec2(-1, -1)*t).rgb;
     vec3 s01 = texture(gSpecular, uv + vec2(-1,  0)*t).rgb;

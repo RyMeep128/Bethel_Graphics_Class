@@ -8,7 +8,7 @@
  * Your anisotropic Kuwahara attempt that:
  * - uses a *structure tensor* (prevOutput) to choose an orientation + anisotropy scaling,
  * - samples *lit color* from originalOutput to produce the final stylized image,
- * - but computes *sector variance* from G-buffer-derived features (albedo luminance,
+ * - but computes *sub_Box variance* from G-buffer-derived features (albedo luminance,
  *   normal difference, depth difference) for stability under lighting changes,
  * - and applies an edge-stopping weight using normals + depth to prevent bleeding across edges.
  *
@@ -53,8 +53,8 @@ uniform vec4 screenSize;
 /** Output filtered color. */
 out vec4 fColor;
 
-/** Number of wedge sectors (angular partitions) used by the filter. */
-const int SECTOR_COUNT = 8;
+/** Number of wedge sub_Boxs (angular partitions) used by the filter. */
+const int SUB_BOX_COUNT = 8;
 
 /**
  * Edge-stopping and feature variance controls.
@@ -168,7 +168,7 @@ vec4 findLargerEigenValue(vec4 prevOutputTex) {
 
 /**
  * Polynomial wedge weight used in Kuwahara-style sampling.
- * This biases samples toward a sector-shaped region.
+ * This biases samples toward a sub_Box-shaped region.
  */
 float polynomialWeight(float x, float y, float eta, float lambda) {
     float polyValue = (x + eta) - lambda * (y * y);
@@ -203,11 +203,11 @@ float edgeStopWeight(vec2 offset, vec3 nCenter, float dCenter) {
 }
 
 // -----------------------------------------------------------------------------
-// Sector statistics
+// SubBox statistics
 // -----------------------------------------------------------------------------
 
 /**
- * Computes the average lit color and a scalar variance for one sector.
+ * Computes the average lit color and a scalar variance for one sub_Box.
  *
  * Average:
  * - computed from originalOutput (lit color) using combined weights.
@@ -218,12 +218,12 @@ float edgeStopWeight(vec2 offset, vec3 nCenter, float dCenter) {
  * - feature variance is then reduced to a scalar via dot(featVar, FEATURE_WEIGHTS).
  *
  * @param anisotropyMat - Oriented scaling matrix controlling the anisotropic sample footprint.
- * @param angle         - Sector center direction (radians).
+ * @param angle         - SubBox center direction (radians).
  * @param radiusF       - Radius in pixels as float.
- * @param avgColor      - Output weighted average lit color for the sector.
+ * @param avgColor      - Output weighted average lit color for the sub_Box.
  * @param variance      - Output scalar variance (lower is smoother).
  */
-void getSectorVarianceAndAverageColor(
+void getSubBoxVarianceAndAverageColor(
 mat2 anisotropyMat,
 float angle,
 float radiusF,
@@ -245,12 +245,16 @@ out float variance
     float eta    = 0.1;
     float lambda = 0.5;
 
-    // Your wedge sampling: +/- 0.392699 (~22.5°) around the sector angle,
+    // Your wedge sampling: +/- 0.392699 (~22.5°) around the sub_Box angle,
     // in steps of 0.196349 (~11.25°).
-    for (float r = 1.0; r <= radiusF; r += 1.0) {
-        for (float a = -0.392699; a <= 0.392699; a += 0.196349) {
 
-            // Base offset direction within this sector (in pixels)
+    float halfV = 3.14 / 8.0;
+    float step  = 3.14 / 16.0;
+
+    for (float r = 1.0; r <= radiusF; r += 1.0) {
+        for (float a = -halfV; a <= halfV + 1e-6; a += step) {
+
+            // Base offset direction within this sub_Box (in pixels)
             vec2 sampleOffset = r * vec2(cos(angle + a), sin(angle + a));
 
             // Apply anisotropic orientation/scaling
@@ -259,13 +263,13 @@ out float variance
             // Combined weight = wedge weight * edge-stopping weight
             float wPoly = polynomialWeight(sampleOffset.x, sampleOffset.y, eta, lambda);
             float wEdge = edgeStopWeight(sampleOffset, nCenter, dCenter);
-            float w     = wPoly * wEdge;
+            float w     = wPoly;
 
             // ---- Mean color from lit buffer (what you actually output)
             vec3 color = sampleColor(sampleOffset);
             weightedColorSum += color * w;
 
-            // ---- Feature variance from G-buffer (for robust sector choice)
+            // ---- Feature variance from G-buffer (for robust sub_Box choice)
             vec3 albedo = sampleAlbedo(sampleOffset);
 
             // Albedo luminance feature
@@ -291,7 +295,7 @@ out float variance
     // Normalize sums
     float invW = 1.0 / max(totalWeight, 0.0001);
 
-    // Sector mean lit color
+    // SubBox mean lit color
     avgColor = weightedColorSum * invW;
 
     // Feature mean and variance
@@ -310,15 +314,15 @@ void main() {
     // Tensor value for this pixel (drives orientation + anisotropy footprint)
     vec4 structureTensor = texture(prevOutput, texCords);
 
-    vec3  sectorAvgColors[SECTOR_COUNT];
-    float sectorVariances[SECTOR_COUNT];
+    vec3  subBoxAvgColors[SUB_BOX_COUNT];
+    float subBoxVariances[SUB_BOX_COUNT];
 
     // Dominant direction + eigenvalues from the tensor
     vec4 lambda = findLargerEigenValue(structureTensor);
     vec2 orientation = lambda.xy;
 
     // Anisotropy measure: (λ1 - λ2) / (λ1 + λ2)
-    float anisotropy = (lambda.z - lambda.w) / (lambda.z + lambda.w + 1e-6);
+    float anisotropy = (lambda.z - lambda.w) / (lambda.z + lambda.w + 0.000001);
 
     // Stabilized scaling: keeps footprint sane when anisotropy is small
     float alpha  = 25.0;
@@ -328,38 +332,38 @@ void main() {
     // Rotation into dominant direction
     mat2 R = mat2(
     orientation.x, -orientation.y,
-    orientation.y,  orientation.x
+    orientation.y, orientation.x
     );
 
     // Anisotropic scaling (ellipse)
     mat2 S = mat2(
     scaleX, 0.0,
-    0.0,   scaleY
+    0.0, scaleY
     );
 
     // Combined anisotropy transform
     mat2 anisotropyMat = R * S;
 
-    // Evaluate each sector
-    for (int i = 0; i < SECTOR_COUNT; i++) {
-        float angle = float(i) * (2.0 * 3.14) / float(SECTOR_COUNT);
-        getSectorVarianceAndAverageColor(
+    // Evaluate each box
+    for (int i = 0; i < SUB_BOX_COUNT; i++) {
+        float angle = float(i) * (2.0 * 3.14) / float(SUB_BOX_COUNT);
+        getSubBoxVarianceAndAverageColor(
         anisotropyMat,
         angle,
         float(radius),
-        sectorAvgColors[i],
-        sectorVariances[i]
+        subBoxAvgColors[i],
+        subBoxVariances[i]
         );
     }
 
-    // Choose the sector with minimum variance (most "uniform" region)
-    float minVariance = sectorVariances[0];
-    vec3 finalColor = sectorAvgColors[0];
+    // Choose the sub_Box with minimum variance (most "uniform" region)
+    float minVariance = subBoxVariances[0];
+    vec3 finalColor = subBoxAvgColors[0];
 
-    for (int i = 1; i < SECTOR_COUNT; i++) {
-        if (sectorVariances[i] < minVariance) {
-            minVariance = sectorVariances[i];
-            finalColor = sectorAvgColors[i];
+    for (int i = 1; i < SUB_BOX_COUNT; i++) {
+        if (subBoxVariances[i] < minVariance) {
+            minVariance = subBoxVariances[i];
+            finalColor = subBoxAvgColors[i];
         }
     }
 
