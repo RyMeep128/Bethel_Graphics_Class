@@ -4,40 +4,55 @@ import { PassTypes } from "./PassTypes.js";
 import { BindTexture } from "./BindTexture.js";
 
 /**
+ * @file Pass
+ * @author Ryan Shafer
+ * @remarks Comments by ChatGPT model 5.2.
+ */
+
+/**
  * A fullscreen post-process pass.
  *
  * A {@link Pass} is responsible for:
  * - binding a shader program,
  * - selecting a render target (screen or an offscreen {@link Render}),
  * - binding common input textures (G-Buffers, paper texture, optional chained input),
- * - uploading common per-frame uniforms (camera position, offsets),
  * - delegating additional uniform uploads (lights/settings) to the caller via {@link PassTypes.uploadCommonUniforms},
  * - and finally drawing a fullscreen quad via the provided `drawRectangle` callback.
  */
 export class Pass {
-    /** Compiled and linked WebGL program for this pass. */
+    /**
+     * Compiled and linked WebGL program for this pass.
+     */
     public readonly program: WebGLProgram;
 
-    /** Cached uniform lookup helper for {@link program}. */
+    /**
+     * Cached uniform lookup helper for {@link Pass.program}.
+     */
     public readonly uniforms: UniformMap;
 
     /**
      * Optional output render target.
+     *
      * If present, this pass renders into {@link Render.buffer} and returns {@link Render.texture}.
      * If absent, this pass renders directly to the default framebuffer (the screen).
      */
     public readonly output?: Render;
 
-    /** WebGL2 context used for rendering and state changes. */
+    /**
+     * WebGL2 context used for rendering and state changes.
+     */
     private gl: WebGL2RenderingContext;
 
     /**
      * Callback that draws a fullscreen quad/rectangle.
-     * This pass assumes the VAO/VBO state required for drawing is handled inside this callback.
+     *
+     * This pass assumes any VAO/VBO state required for drawing is handled inside this callback.
      */
     private drawRectangle: () => void;
 
     /**
+     * Creates a new post-process pass wrapper.
+     *
      * @param gl - WebGL2 rendering context.
      * @param program - Shader program used for this pass.
      * @param drawRectangle - Callback that renders a fullscreen quad.
@@ -59,19 +74,25 @@ export class Pass {
     /**
      * Executes the pass and optionally returns the output texture if rendering offscreen.
      *
-     * Uniforms/textures are only bound if the corresponding uniform exists in the shader,
-     * allowing multiple shaders with different inputs to share this same pass logic.
+     * Implementation notes:
+     * - Uniforms/textures are only bound if the corresponding uniform exists in the shader.
+     *   This allows you to reuse the same {@link Pass} logic across shaders with different inputs.
+     * - This method assumes a fullscreen pass: depth test and blending are disabled by default.
      *
-     * @param val - Pass input payload (textures, dimensions, camera values, and uniform-upload hook).
-     * @returns The output texture if {@link output} is provided; otherwise `undefined`.
+     * @param val - Pass input payload (textures, dimensions, and a common-uniform upload hook).
+     * @returns The output texture if {@link Pass.output} is provided; otherwise `undefined`.
      */
     public render(val: PassTypes): WebGLTexture | undefined {
         const gl = this.gl;
+
+        // Make this pass's shader active before binding uniforms/textures.
         gl.useProgram(this.program);
 
-        // Output target selection:
-        // - If an offscreen Render target exists, bind it and use its size.
-        // - Otherwise, draw to the default framebuffer (screen) using the supplied dimensions.
+        // ---------------------------------------------------------------------
+        // Output target selection
+        // ---------------------------------------------------------------------
+        // - If offscreen output exists, bind its framebuffer and use its size.
+        // - Otherwise render directly to the default framebuffer (screen).
         if (this.output) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.output.buffer);
             gl.viewport(0, 0, this.output.width, this.output.height);
@@ -80,27 +101,30 @@ export class Pass {
             gl.viewport(0, 0, val.width, val.height);
         }
 
-        // Fullscreen passes typically don't need depth/blending.
+        // Fullscreen post-process passes commonly don't require depth or blending.
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.BLEND);
 
-        // Clear target before drawing. (White background by default.)
+        // Clear the target prior to drawing. (White background by default.)
         gl.clearColor(1, 1, 1, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        // Texture binding helper: assigns consecutive texture units and sets sampler uniforms.
+        // ---------------------------------------------------------------------
+        // Texture binding
+        // ---------------------------------------------------------------------
+        // Allocates consecutive texture units and assigns sampler uniforms.
         const binder = new BindTexture(gl);
         binder.reset();
 
-        // Bind common textures only if the uniform exists in this shader.
-        // (This avoids errors and can reduce wasted work when shaders don't use certain inputs.)
+        // Bind common textures only if the corresponding uniform exists in this shader.
+        // (Avoids errors if uniforms are optimized out, and avoids wasted work.)
         binder.bind(val.gAlbedoTex, this.uniforms.get("gAlbedo"));
         binder.bind(val.gSpecularTex, this.uniforms.get("gSpecular"));
         binder.bind(val.gNormalTex, this.uniforms.get("gNormalTex"));
         binder.bind(val.gPositionTex, this.uniforms.get("gPosition"));
         binder.bind(val.paperTex, this.uniforms.get("paperTex"));
 
-        // Optional chained input from a previous pass.
+        // Optional chained inputs from earlier passes.
         if (val.inputTex) {
             binder.bind(val.inputTex, this.uniforms.get("prevOutput"));
         }
@@ -108,18 +132,24 @@ export class Pass {
             binder.bind(val.originalOutputTex, this.uniforms.get("originalOutput"));
         }
 
-        // Allow caller/pipeline to upload shared uniforms (e.g., lights, feature toggles).
-        if (val.uploadCommonUniforms){
+        // ---------------------------------------------------------------------
+        // Cross-cutting uniforms (lights, toggles, global settings)
+        // ---------------------------------------------------------------------
+        // Let the caller upload shared uniforms after program bind and texture binding.
+        if (val.uploadCommonUniforms) {
             val.uploadCommonUniforms(this.program, this.uniforms, binder);
         }
 
-        // Draw the fullscreen geometry for this pass.
+        // ---------------------------------------------------------------------
+        // Draw
+        // ---------------------------------------------------------------------
+        // Render the fullscreen geometry for this pass.
         this.drawRectangle();
 
-        // Unbind to reduce state leakage into subsequent rendering.
+        // Unbind to reduce state leakage into subsequent rendering steps.
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        // If offscreen, expose the resulting texture for chaining.
+        // If offscreen, expose the resulting texture for chaining; otherwise undefined.
         return this.output?.texture;
     }
 }

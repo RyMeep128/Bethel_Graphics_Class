@@ -3,29 +3,6 @@
     <title>Project 2</title>
     <link rel="stylesheet" href="index.css"/>
     <script type = "module" src="../Logic/index.js"></script>
-    <script id = "vertex-shader" type = "x-shader/x-vertex">#version 300 es
-        in vec4 vPosition;
-        in vec4 vColor;
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
-        out vec4 color;
-
-        void main(){
-            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
-            color = vColor;
-        }
-
-    </script>
-    <script id = "fragment-shader" type = "x-shader/x-fragment">#version 300 es
-        precision mediump float;
-        in vec4 color;
-        out vec4 fragColor;
-
-        void main(){
-            fragColor = color;
-        }
-
-    </script>
 
 </head>
 <body>

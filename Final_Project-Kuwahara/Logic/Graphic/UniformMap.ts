@@ -1,27 +1,41 @@
 /**
+ * @file UniformMap
+ * @author Ryan Shafer
+ * @remarks Comments by ChatGPT model 5.2.
+ */
+
+/**
  * Small caching layer around `gl.getUniformLocation`.
  *
- * WebGL uniform lookups are relatively expensive; this class lazily resolves each uniform
+ * WebGL uniform lookups can be relatively expensive; this class lazily resolves each uniform
  * the first time it is requested and stores the location in a map for reuse.
  *
- * Note:
+ * Notes:
  * - `getUniformLocation` can return `null` if the uniform does not exist or was optimized out.
- * - This class caches that `null` result as well, preventing repeated lookups.
+ * - This class intentionally caches `null` as well to prevent repeated lookups.
  */
 export class UniformMap {
-    /** WebGL2 context used to query uniform locations. */
+    /**
+     * WebGL2 context used to query uniform locations.
+     */
     private gl: WebGL2RenderingContext;
 
-    /** Program whose uniforms this map caches. */
+    /**
+     * Program whose uniform locations are cached by this instance.
+     */
     private program: WebGLProgram;
 
     /**
      * Cache of uniform locations keyed by uniform name.
-     * Values may be `null` (uniform missing/optimized out), which is intentionally cached.
+     *
+     * Values may be `null` (uniform missing/optimized out). That `null` is intentionally cached
+     * so we don't repeatedly query the driver for uniforms that aren't present.
      */
     private map: Map<string, WebGLUniformLocation | null> = new Map<string, WebGLUniformLocation | null>();
 
     /**
+     * Creates a new uniform-location cache for a specific shader program.
+     *
      * @param gl - WebGL2 rendering context.
      * @param program - Program to query uniform locations from.
      */
@@ -32,6 +46,10 @@ export class UniformMap {
 
     /**
      * Returns the uniform location for the given name, using the cached value if available.
+     *
+     * Behavior:
+     * - First call for a given `name` queries `gl.getUniformLocation(...)` and stores the result.
+     * - Subsequent calls return the cached location (including cached `null`).
      *
      * @param name - GLSL uniform name to resolve.
      * @returns The uniform location, or `null` if not found / optimized out.
