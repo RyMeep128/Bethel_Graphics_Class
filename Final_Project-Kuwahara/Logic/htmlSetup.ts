@@ -52,6 +52,19 @@ export function setupCheckBoxAndSlider(): RenderSettings {
         watercolorSettings.KuwaharaEnabled = KuwaharaCheckBox.checked;
     });
 
+    const GTensorCheckBox = document.getElementById("Gtensor") as HTMLInputElement;
+    GTensorCheckBox.addEventListener("change", () => {
+        watercolorSettings.GTensorEnabled = GTensorCheckBox.checked;
+    });
+
+    /**
+     * Toggle: enables/disables Kuwahara stage in the pipeline.
+     */
+    const GKuwaharaCheckBox = document.getElementById("Gkuwahara") as HTMLInputElement;
+    GKuwaharaCheckBox.addEventListener("change", () => {
+        watercolorSettings.GKuwaharaEnabled = GKuwaharaCheckBox.checked;
+    });
+
     /**
      * Toggle: enables/disables paper modulation stage.
      */
@@ -90,29 +103,29 @@ export function setupCheckBoxAndSlider(): RenderSettings {
     // Version selection (mutually exclusive)
     // -------------------------------------------------------------------------
 
-    /**
-     * Selects version 1 of the pipeline/shaders.
-     * Note: this handler enforces mutual exclusion with `version2`.
-     */
-    const VersionCheckBox1 = document.getElementById("version1") as HTMLInputElement;
-
-    /**
-     * Selects version 2 of the pipeline/shaders.
-     * Note: this handler enforces mutual exclusion with `version1`.
-     */
-    const VersionCheckBox2 = document.getElementById("version2") as HTMLInputElement;
-
-    VersionCheckBox1.addEventListener("change", () => {
-        watercolorSettings.version1 = VersionCheckBox1.checked;
-        VersionCheckBox2.checked = !VersionCheckBox1.checked;
-        watercolorSettings.version2 = !VersionCheckBox1.checked;
-    });
-
-    VersionCheckBox2.addEventListener("change", () => {
-        watercolorSettings.version2 = VersionCheckBox2.checked;
-        VersionCheckBox1.checked = !VersionCheckBox2.checked;
-        watercolorSettings.version1 = !VersionCheckBox2.checked;
-    });
+    // /**
+    //  * Selects version 1 of the pipeline/shaders.
+    //  * Note: this handler enforces mutual exclusion with `version2`.
+    //  */
+    // const VersionCheckBox1 = document.getElementById("version1") as HTMLInputElement;
+    //
+    // /**
+    //  * Selects version 2 of the pipeline/shaders.
+    //  * Note: this handler enforces mutual exclusion with `version1`.
+    //  */
+    // const VersionCheckBox2 = document.getElementById("version2") as HTMLInputElement;
+    //
+    // VersionCheckBox1.addEventListener("change", () => {
+    //     watercolorSettings.version1 = VersionCheckBox1.checked;
+    //     VersionCheckBox2.checked = !VersionCheckBox1.checked;
+    //     watercolorSettings.version2 = !VersionCheckBox1.checked;
+    // });
+    //
+    // VersionCheckBox2.addEventListener("change", () => {
+    //     watercolorSettings.version2 = VersionCheckBox2.checked;
+    //     VersionCheckBox1.checked = !VersionCheckBox2.checked;
+    //     watercolorSettings.version1 = !VersionCheckBox2.checked;
+    // });
 
     // -------------------------------------------------------------------------
     // Sliders
@@ -295,6 +308,44 @@ export function setupCheckBoxAndSlider(): RenderSettings {
     SpecularWeightSlider.addEventListener("input", () => {
         watercolorSettings.specularWeight = SpecularWeightSlider.valueAsNumber;
         SpecularWeightValue.innerText = SpecularWeightSlider.valueAsNumber.toFixed(2);
+    });
+
+    const TensorWeightSlider = document.getElementById("tensorWeight") as HTMLInputElement;
+    const TensorWeightValue = document.getElementById("tensorWeightValue") as HTMLElement;
+
+    TensorWeightSlider.addEventListener("change", () => {
+        watercolorSettings.tensorWeight = TensorWeightSlider.valueAsNumber;
+        TensorWeightValue.innerText = TensorWeightSlider.valueAsNumber.toFixed(2);
+    });
+    TensorWeightSlider.addEventListener("input", () => {
+        watercolorSettings.tensorWeight = TensorWeightSlider.valueAsNumber;
+        TensorWeightValue.innerText = TensorWeightSlider.valueAsNumber.toFixed(2);
+    });
+
+    const paperStrengthSlider = document.getElementById("paperStrength") as HTMLInputElement;
+    const paperStrengthValue = document.getElementById("paperStrengthValue") as HTMLElement;
+
+    paperStrengthSlider.addEventListener("change", () => {
+        watercolorSettings.paperStrength = paperStrengthSlider.valueAsNumber;
+        paperStrengthValue.innerText = paperStrengthSlider.valueAsNumber.toFixed(2);
+    });
+    paperStrengthSlider.addEventListener("input", () => {
+        watercolorSettings.paperStrength = paperStrengthSlider.valueAsNumber;
+        paperStrengthValue.innerText = paperStrengthSlider.valueAsNumber.toFixed(2);
+    });
+
+    const paperScaleSlider = document.getElementById("paperScale") as HTMLInputElement;
+    const paperScaleValue = document.getElementById("paperScaleValue") as HTMLElement;
+
+    paperScaleSlider.addEventListener("change", () => {
+        watercolorSettings.paperScale[0] = paperScaleSlider.valueAsNumber;
+        watercolorSettings.paperScale[1] = paperScaleSlider.valueAsNumber;
+        paperScaleValue.innerText = paperScaleSlider.valueAsNumber.toFixed(2);
+    });
+    paperScaleSlider.addEventListener("input", () => {
+        watercolorSettings.paperScale[0] = paperScaleSlider.valueAsNumber;
+        watercolorSettings.paperScale[1] = paperScaleSlider.valueAsNumber;
+        paperScaleValue.innerText = paperScaleSlider.valueAsNumber.toFixed(2);
     });
 
     return watercolorSettings;

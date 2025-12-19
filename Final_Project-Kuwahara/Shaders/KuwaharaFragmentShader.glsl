@@ -263,7 +263,7 @@ out float variance
             // Combined weight = wedge weight * edge-stopping weight
             float wPoly = polynomialWeight(sampleOffset.x, sampleOffset.y, eta, lambda);
             float wEdge = edgeStopWeight(sampleOffset, nCenter, dCenter);
-            float w     = wPoly;
+            float w     = wPoly * wEdge;
 
             // ---- Mean color from lit buffer (what you actually output)
             vec3 color = sampleColor(sampleOffset);

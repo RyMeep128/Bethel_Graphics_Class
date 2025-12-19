@@ -61,6 +61,8 @@ uniform sampler2D gNormalTex;
 uniform sampler2D gPosition;
 uniform sampler2D gSpecular;
 
+uniform sampler2D originalOutput;
+
 /**
  * Feature weights for combining tensors from different sources.
  * - wA: albedo contribution
@@ -72,6 +74,7 @@ uniform float wA;
 uniform float wN;
 uniform float wD;
 uniform float wS;
+uniform float tW;
 
 /**
  * Sobel kernels.
@@ -253,7 +256,8 @@ void main()
     vec4 tN = tensorNormal(texCords);
     vec4 tD = tensorDepth(texCords);
     vec4 tS = tensorSpecular(texCords);
+    vec4 tOGTensor = texture(originalOutput,texCords);
 
     // Combine into a single tensor with adjustable weights.
-    fColor = wA * tA + wN * tN + wD * tD + wS * tS;
+    fColor = wA * tA + wN * tN + wD * tD + wS * tS + tOGTensor * tW;
 }

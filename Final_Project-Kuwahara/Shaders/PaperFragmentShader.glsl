@@ -42,14 +42,14 @@ uniform sampler2D paperTex;
  * NOTE: Your comment says "0..1", but the constant is 1.5, which is *beyond* that range.
  * That’s not “wrong”, just means you are deliberately exaggerating the texture influence.
  */
-const float paperStrength = 1.5;
+uniform float paperStrength;
 
 /**
  * Scales the UVs for the paper texture:
  * - larger values -> paper texture repeats more -> grain appears smaller/tighter
  * - smaller values -> paper repeats less -> grain appears larger/softer
  */
-const vec2 paperScale = vec2(1.5);
+uniform vec2 paperScale;
 
 /** Output color after applying paper modulation. */
 out vec4 fColor;
