@@ -35,6 +35,9 @@ in vec2 texCords;
  * Packed (R,G,B) = (Axx, Ayy, Axy).
  */
 uniform sampler2D prevOutput;
+/**
+Test for commit
+*/
 
 /** Lit/composited color buffer to be stylized by the filter. */
 uniform sampler2D originalOutput;
